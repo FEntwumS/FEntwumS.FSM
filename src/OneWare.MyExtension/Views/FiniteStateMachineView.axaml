@@ -1,13 +1,90 @@
-<!-- filepath: c:\onewareextension\OneWare.MyExtension\src\OneWare.MyExtension\Views\FiniteStateMachineView.axaml -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:OneWare.MyExtension.ViewModels"
              x:Class="OneWare.MyExtension.Views.FiniteStateMachineView"
              x:DataType="vm:FiniteStateMachineViewModel">
-    <Grid Margin="10">
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-            <TextBlock Text="File: " FontWeight="Bold"/>
-            <TextBlock Text="{Binding FilePath}"/>
-        </StackPanel>
+    
+    <Grid ColumnDefinitions="250, *">
+        
+        <Border Grid.Column="0" Background="#252526" BorderBrush="#3e3e42" BorderThickness="0,0,1,0">
+         <StackPanel Margin="15" Spacing="10">
+    <TextBlock Text="FSM EDITOR" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+    
+    <Button Content="Save" 
+            Command="{Binding SaveToFileCommand}" 
+            CommandParameter="{Binding FilePath}"
+            HorizontalAlignment="Stretch"/>
+
+    <Button Content="Save As..." 
+            Click="OnSaveAsClicked" 
+            HorizontalAlignment="Stretch"/>
+
+    <Button Content="Add New State" 
+            Command="{Binding AddStateCommand}" 
+            HorizontalAlignment="Stretch"/>
+
+    <Button Content="Load XML" 
+            Click="OnLoadClicked" 
+            HorizontalAlignment="Stretch"/>
+</StackPanel>
+        </Border>
+
+        <ItemsControl Grid.Column="1" ItemsSource="{Binding States}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <Canvas Background="#1e1e1e" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+
+            <ItemsControl.ItemContainerTheme>
+               <ControlTheme TargetType="ContentPresenter" x:DataType="vm:StateItemViewModel">
+        <Setter Property="Canvas.Left" Value="{Binding X}"/>
+        <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+    </ControlTheme>
+            </ItemsControl.ItemContainerTheme>
+
+           <ItemsControl.ItemTemplate>
+    <DataTemplate x:DataType="vm:StateItemViewModel">
+        <Grid PointerPressed="OnPointerPressed"
+              PointerMoved="OnPointerMoved"
+              PointerReleased="OnPointerReleased"
+              DoubleTapped="OnDoubleTapped" 
+              Background="Transparent"
+              Width="100" Height="100">
+              <Grid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Set as Initial State" 
+                              Click="OnSetInitialStateClicked"/>
+                </ContextMenu>
+            </Grid.ContextMenu>
+            
+            <Ellipse Fill="#3c3c3c" Stroke="DodgerBlue" StrokeThickness="2"/>
+
+            <Path Data="M -40,50 L 0,50 M -12,42 L 0,50 L -12,58 L -12,42"
+                Stroke="White"
+                StrokeThickness="3"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                IsHitTestVisible="False"
+                IsVisible="{Binding IsInitialState}" />
+
+            <TextBlock Text="{Binding Id}" 
+                       IsVisible="{Binding !IsEditing}"
+                       VerticalAlignment="Center" 
+                       HorizontalAlignment="Center"
+                       FontWeight="Bold"/>
+
+            <TextBox Text="{Binding Id, Mode=TwoWay}"
+                     IsVisible="{Binding IsEditing}"
+                     VerticalAlignment="Center"
+                     HorizontalAlignment="Center"
+                     MinWidth="60"
+                     KeyDown="OnTextBoxKeyDown"
+                     LostFocus="OnTextBoxLostFocus"/>
+        </Grid>
+    </DataTemplate>
+</ItemsControl.ItemTemplate>
+        </ItemsControl>
+        
     </Grid>
 </UserControl>

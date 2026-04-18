@@ -1,71 +1,63 @@
-using Avalonia;
-using Avalonia.Controls;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 using OneWare.Essentials.Enums;
 using OneWare.Essentials.Models;
 using OneWare.Essentials.Services;
-using OneWare.Essentials.ViewModels;
 using OneWare.MyExtension.Services;
 using OneWare.MyExtension.ViewModels;
-using Prism.Ioc;
-using Prism.Modularity;
 
 namespace OneWare.MyExtension;
 
-public class OneWareMyExtensionModule : IModule
+public class OneWareMyExtensionModule : IOneWareModule
 {
-    public void RegisterTypes(IContainerRegistry containerRegistry)
+    public string Id => "OneWare.MyExtension";
+
+    public IReadOnlyCollection<string> Dependencies => Array.Empty<string>();
+
+    public void RegisterServices(IServiceCollection services)
     {
-        containerRegistry.RegisterSingleton<IFiniteStateMachineService, FiniteStateMachineService>();
+        services.AddSingleton<IFiniteStateMachineService, FiniteStateMachineService>();
     }
 
-    public void OnInitialized(IContainerProvider containerProvider)
+    public void Initialize(IServiceProvider serviceProvider)
     {
-        containerProvider.Resolve<IDockService>().RegisterLayoutExtension<FiniteStateMachineViewModel>(DockShowLocation.Document);
-        
-        //This example adds a context menu for .vhd files
-                containerProvider.Resolve<IProjectExplorerService>().RegisterConstructContextMenu((x,l) =>
+        serviceProvider.GetRequiredService<IMainDockService>().RegisterLayoutExtension<FiniteStateMachineViewModel>(DockShowLocation.Document);
+
+        serviceProvider.GetRequiredService<IProjectExplorerService>().RegisterConstructContextMenu((selection, menuItems) =>
         {
-            if (x is [IProjectFile { Extension: ".vhd" or ".vhdl" } file])
+            var selectedEntry = selection
+                .OfType<IProjectEntry>()
+                .FirstOrDefault(entry => !string.IsNullOrWhiteSpace(entry.FullPath));
+
+            if (selectedEntry is null)
+                return;
+
+            menuItems.Add(new MenuItemModel("OneWare.MyExtension.OpenFiniteStateMachine")
             {
-                l.Add(new MenuItemViewModel("GH")
+                Header = "View FSM-Graph",
+                IsEnabled = true,
+                Priority = 100,
+                Command = new AsyncRelayCommand(async () =>
                 {
-                    Header = "GH",
-                    Items = 
-                    [
-                        new MenuItemViewModel("A")
-                        {
-                            Header = "A"
+                    var projectExplorerService = serviceProvider.GetRequiredService<IProjectExplorerService>();
+                    var file = selectedEntry as IProjectFile
+                               ?? projectExplorerService.GetEntryFromFullPath(selectedEntry.FullPath) as IProjectFile;
 
-                        },
+                    if (file is null)
+                        return;
 
-                        new MenuItemViewModel("B")
-                        {
-                            Header = "B"        
-                        },
+                    var extension = string.IsNullOrWhiteSpace(file.Extension)
+                        ? Path.GetExtension(file.FullPath)
+                        : file.Extension;
 
-                        new MenuItemViewModel("C")
-                        {
-                            Header = "C"
-                        }
-                    ]
-                });
-            }
-        });
-                       containerProvider.Resolve<IProjectExplorerService>().RegisterConstructContextMenu((x,l) =>
-        {
-            if (x is [IProjectFile { Extension: ".json" } file])
-            {
-                l.Add(new MenuItemViewModel("OpenFiniteStateMachine")
-                {
-                    Header = "Open Finite State Machine",
-                    Command = new AsyncRelayCommand(async () =>
-                    {
-                        var fsmService = containerProvider.Resolve<IFiniteStateMachineService>();
-                        await fsmService.ShowFiniteStateMachineAsync(file);
-                    })
-                });
-            }
+                    if (!string.Equals(extension, ".xml", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(extension, ".scxml", StringComparison.OrdinalIgnoreCase))
+                        return;
+
+                    var fsmService = serviceProvider.GetRequiredService<IFiniteStateMachineService>();
+                    await fsmService.ShowFiniteStateMachineAsync(file);
+                })
+            });
         });
     }
 }

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <Version>0.1</Version>
+        <Version>0.3</Version>
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
@@ -13,16 +13,19 @@
     <ItemGroup>
         <AvaloniaResource Include="Assets\**\*.*"/>
     </ItemGroup>
-
-    <ItemGroup>
-        <PackageReference Include="OneWare.Essentials" Version="0.11.11" Private="false" ExcludeAssets="runtime;Native" />
-    </ItemGroup>
-
-    <Target Name="GenerateCompatibilityFile" AfterTargets="Build">
         <ItemGroup>
-            <FilteredDependencies Include="@(PackageReference)" Condition="'%(Private)' == 'false'"/>
+                    <PackageReference Include="OneWare.Essentials" Version="1.0.10" Private="false" ExcludeAssets="runtime;Native" />
+                    <PackageReference Include="OneWare.Settings" Version="1.0.10" Private="false" ExcludeAssets="runtime;Native" />
+                    <PackageReference Include="Prism.Core" Version="8.1.97" Private="true" ExcludeAssets="runtime;Native" />
+                    <PackageReference Include="OxyPlot.Avalonia" Version="2.1.0-Avalonia11" Private="true" />
+                    <PackageReference Include="SkiaImageView.Avalonia11" Version="1.5.0" Private="true" />
+                    <PackageReference Include="System.Drawing.Common" Version="8.0.0" Private="true"/>
         </ItemGroup>
         
+        <Target Name="GenerateCompatibilityFile" AfterTargets="Build">
+        <ItemGroup>
+            <FilteredDependencies Include="@(PackageReference)" Condition="'%(Private)' == 'false'" />
+        </ItemGroup>
         <WriteLinesToFile
                 File="$(OutDir)compatibility.txt"
                 Lines="@(FilteredDependencies->'%(Identity) : %(Version)')"

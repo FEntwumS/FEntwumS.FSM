@@ -25,7 +25,7 @@
   "sourceUrl": "https://github.com/GithubUser/OneWare.MyExtension/releases/download",
   "versions": [
     {
-      "version": "0.1",
+      "version": "0.3",
       "targets": [
         {
           "target": "all"
