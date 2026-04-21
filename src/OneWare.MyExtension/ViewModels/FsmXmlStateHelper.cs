@@ -106,4 +106,99 @@ public static class FsmXmlStateHelper
 
         // startNode entfernen
         document.Root.Element(ns + "startNode")?.Remove();
-}}
+    }
+
+    public static IEnumerable<TransitionViewModel> ReadTransitions(
+        XElement stateElement,
+        XNamespace ns,
+        IReadOnlyDictionary<string, StateItemViewModel> statesById)
+    {
+        var sourceId = stateElement.Attribute("id")?.Value;
+        if (string.IsNullOrWhiteSpace(sourceId) || !statesById.TryGetValue(sourceId, out var sourceState))
+            yield break;
+
+        var transitionsElement = stateElement.Element(ns + "transitions");
+        if (transitionsElement is null)
+            yield break;
+
+        foreach (var transitionElement in transitionsElement.Elements(ns + "transition"))
+        {
+            var targetId = transitionElement.Attribute("target")?.Value;
+            if (string.IsNullOrWhiteSpace(targetId) || !statesById.TryGetValue(targetId, out var targetState))
+                continue;
+
+            var ctrlPointsElement = transitionElement.Element(ns + "ctrlPoints");
+            var controlPoints = ctrlPointsElement?.Elements(ns + "ctrlPoint").Select(ReadPoint).ToList()
+                ?? new List<TransitionPointViewModel>();
+
+            var startPoint = ReadPoint(transitionElement.Element(ns + "startPoint"));
+            var endPoint = ReadPoint(transitionElement.Element(ns + "endPoint"));
+            var conditionPosition = ReadPoint(transitionElement.Element(ns + "conditionPosition"));
+            var isAutoRouted = bool.TryParse(transitionElement.Attribute("autoRoute")?.Value, out var parsedAutoRoute)
+                ? parsedAutoRoute
+                : controlPoints.Count == 0;
+
+            var transition = new TransitionViewModel
+            {
+                SourceState = sourceState,
+                TargetState = targetState,
+                Condition = string.IsNullOrWhiteSpace(transitionElement.Attribute("cond")?.Value)
+                    ? "1"
+                    : transitionElement.Attribute("cond")!.Value,
+                IsAutoRouted = isAutoRouted
+            };
+
+            transition.SourceSide = sourceState.GetNearestConnectorSide(startPoint.ToPoint());
+            transition.TargetSide = targetState.GetNearestConnectorSide(endPoint.ToPoint());
+
+            CopyPoint(startPoint, transition.StartPoint);
+            CopyPoint(endPoint, transition.EndPoint);
+            CopyPoint(conditionPosition, transition.ConditionPosition);
+
+            foreach (var controlPoint in controlPoints)
+                transition.ControlPoints.Add(controlPoint);
+
+            if (!transition.IsAutoRouted)
+                transition.InitializeManualAnchorsFromCurrentEndpoints();
+
+            transition.RefreshGeometry();
+            yield return transition;
+        }
+    }
+
+    public static XElement CreateTransitionElement(TransitionViewModel transition, XNamespace ns)
+    {
+        return new XElement(ns + "transition",
+            new XAttribute("cond", string.IsNullOrWhiteSpace(transition.Condition) ? "1" : transition.Condition),
+            new XAttribute("target", transition.TargetState?.Id ?? string.Empty),
+            new XAttribute("autoRoute", transition.IsAutoRouted),
+            CreatePointElement(ns + "conditionPosition", transition.ConditionPosition),
+            CreatePointElement(ns + "startPoint", transition.StartPoint),
+            CreatePointElement(ns + "endPoint", transition.EndPoint),
+            new XElement(ns + "ctrlPoints",
+                transition.ControlPoints.Select(ctrlPoint => CreatePointElement(ns + "ctrlPoint", ctrlPoint))));
+    }
+
+    private static TransitionPointViewModel ReadPoint(XElement? element)
+    {
+        if (element is null)
+            return new TransitionPointViewModel();
+
+        var x = double.TryParse(element.Attribute("x")?.Value, out var parsedX) ? parsedX : 0;
+        var y = double.TryParse(element.Attribute("y")?.Value, out var parsedY) ? parsedY : 0;
+        return new TransitionPointViewModel(x, y);
+    }
+
+    private static void CopyPoint(TransitionPointViewModel source, TransitionPointViewModel target)
+    {
+        target.X = source.X;
+        target.Y = source.Y;
+    }
+
+    private static XElement CreatePointElement(XName elementName, TransitionPointViewModel point)
+    {
+        return new XElement(elementName,
+            new XAttribute("x", (int)point.X),
+            new XAttribute("y", (int)point.Y));
+    }
+}

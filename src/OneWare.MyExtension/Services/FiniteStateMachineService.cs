@@ -7,6 +7,8 @@ namespace OneWare.MyExtension.Services;
 public interface IFiniteStateMachineService
 {
     Task ShowFiniteStateMachineAsync(IProjectFile jsonFile);
+
+    Task CreateNewFiniteStateMachineAsync();
 }
 
 public class FiniteStateMachineService : IFiniteStateMachineService
@@ -38,7 +40,15 @@ public class FiniteStateMachineService : IFiniteStateMachineService
 
     public Task CreateNewFiniteStateMachineAsync()
     {
-        var viewModel = new FiniteStateMachineViewModel(string.Empty, _fileIconService, _projectExplorerService, _mainDockService, _windowService)
+        var untitledPath = Path.Combine(
+            Path.GetTempPath(),
+            "OneWare",
+            "FSM",
+            $"Untitled-{Guid.NewGuid():N}.xml");
+
+        Directory.CreateDirectory(Path.GetDirectoryName(untitledPath)!);
+
+        var viewModel = new FiniteStateMachineViewModel(untitledPath, _fileIconService, _projectExplorerService, _mainDockService, _windowService)
         {
             Title = "New Finite State Machine"
         };

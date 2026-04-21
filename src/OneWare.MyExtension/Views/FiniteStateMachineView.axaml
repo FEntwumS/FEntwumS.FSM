@@ -2,7 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:OneWare.MyExtension.ViewModels"
              x:Class="OneWare.MyExtension.Views.FiniteStateMachineView"
-             x:DataType="vm:FiniteStateMachineViewModel">
+             x:DataType="vm:FiniteStateMachineViewModel"
+             Focusable="True"
+             KeyDown="OnEditorKeyDown">
     
     <Grid ColumnDefinitions="250, *">
         
@@ -10,9 +12,8 @@
          <StackPanel Margin="15" Spacing="10">
     <TextBlock Text="FSM EDITOR" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
     
-    <Button Content="Save" 
-            Command="{Binding SaveToFileCommand}" 
-            CommandParameter="{Binding FilePath}"
+        <Button Content="Save"
+            Click="OnSaveClicked"
             HorizontalAlignment="Stretch"/>
 
     <Button Content="Save As..." 
@@ -23,68 +24,291 @@
             Command="{Binding AddStateCommand}" 
             HorizontalAlignment="Stretch"/>
 
+    <TextBlock Text="{Binding TransitionHint}"
+               TextWrapping="Wrap"
+               Foreground="#d0d0d0"/>
+
     <Button Content="Load XML" 
             Click="OnLoadClicked" 
             HorizontalAlignment="Stretch"/>
 </StackPanel>
         </Border>
 
-        <ItemsControl Grid.Column="1" ItemsSource="{Binding States}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <Canvas Background="#1e1e1e" />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
+        <Grid x:Name="EditorSurface" Grid.Column="1" Background="#1e1e1e" Focusable="True" PointerPressed="OnCanvasPointerPressed" PointerMoved="OnCanvasPointerMoved" PointerReleased="OnCanvasPointerReleased">
+            <ItemsControl ItemsSource="{Binding Transitions}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Canvas />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
 
-            <ItemsControl.ItemContainerTheme>
-               <ControlTheme TargetType="ContentPresenter" x:DataType="vm:StateItemViewModel">
-        <Setter Property="Canvas.Left" Value="{Binding X}"/>
-        <Setter Property="Canvas.Top" Value="{Binding Y}"/>
-    </ControlTheme>
-            </ItemsControl.ItemContainerTheme>
+                <ItemsControl.ItemContainerTheme>
+                    <ControlTheme TargetType="ContentPresenter" x:DataType="vm:TransitionViewModel">
+                        <Setter Property="Canvas.Left" Value="0"/>
+                        <Setter Property="Canvas.Top" Value="0"/>
+                    </ControlTheme>
+                </ItemsControl.ItemContainerTheme>
 
-           <ItemsControl.ItemTemplate>
-    <DataTemplate x:DataType="vm:StateItemViewModel">
-        <Grid PointerPressed="OnPointerPressed"
-              PointerMoved="OnPointerMoved"
-              PointerReleased="OnPointerReleased"
-              DoubleTapped="OnDoubleTapped" 
-              Background="Transparent"
-              Width="100" Height="100">
-              <Grid.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="Set as Initial State" 
-                              Click="OnSetInitialStateClicked"/>
-                </ContextMenu>
-            </Grid.ContextMenu>
-            
-            <Ellipse Fill="#3c3c3c" Stroke="DodgerBlue" StrokeThickness="2"/>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:TransitionViewModel">
+                        <Canvas Width="5000" Height="5000">
+                            <Canvas.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Delete"
+                                              Click="OnDeleteTransitionClicked"/>
+                                </ContextMenu>
+                            </Canvas.ContextMenu>
+                            <Path Data="{Binding PathData}"
+                                  Stroke="Transparent"
+                                  StrokeThickness="14"
+                                                                    PointerPressed="OnTransitionPointerPressed"
+                                                                    PointerMoved="OnTransitionPointerMoved"
+                                                                    PointerReleased="OnTransitionPointerReleased"
+                                                                    Tapped="OnTransitionTapped"
+                                  DoubleTapped="OnTransitionDoubleTapped"/>
+                                <Path Data="{Binding PathData}"
+                                    Stroke="#66FBBF24"
+                                    StrokeThickness="10"
+                                    IsVisible="{Binding IsSelected}"/>
+                            <Path Data="{Binding PathData}"
+                                  Stroke="#3FB5FF"
+                                  StrokeThickness="3"/>
+                            <Path Data="{Binding PathData}"
+                                    Stroke="#FBBF24"
+                                    StrokeThickness="5"
+                                    IsVisible="{Binding IsSelected}"/>
+                            <Path Data="{Binding ArrowHeadData}"
+                                  Fill="#3FB5FF"
+                                  Stroke="#3FB5FF"
+                                  StrokeThickness="2"/>
+                               <Border Canvas.Left="{Binding StartHandleLeft}"
+                                     Canvas.Top="{Binding StartHandleTop}"
+                                     Width="20"
+                                     Height="20"
+                                     Background="#01FFFFFF"
+                                     CornerRadius="10"
+                                     Tag="start"
+                                     PointerPressed="OnTransitionHandlePointerPressed"
+                                     PointerMoved="OnTransitionHandlePointerMoved"
+                                     PointerReleased="OnTransitionHandlePointerReleased"
+                                     IsVisible="{Binding IsSelected}">
+                                  <Ellipse Width="20"
+                                         Height="20"
+                                         Fill="#F8FAFC"
+                                         Stroke="#0EA5E9"
+                                         StrokeThickness="2"
+                                         IsHitTestVisible="False"/>
+                               </Border>
+                               <Border Canvas.Left="{Binding EndHandleLeft}"
+                                     Canvas.Top="{Binding EndHandleTop}"
+                                     Width="20"
+                                     Height="20"
+                                     Background="#01FFFFFF"
+                                     CornerRadius="10"
+                                     Tag="end"
+                                     PointerPressed="OnTransitionHandlePointerPressed"
+                                     PointerMoved="OnTransitionHandlePointerMoved"
+                                     PointerReleased="OnTransitionHandlePointerReleased"
+                                     IsVisible="{Binding IsSelected}">
+                                  <Ellipse Width="20"
+                                         Height="20"
+                                         Fill="#F8FAFC"
+                                         Stroke="#0EA5E9"
+                                         StrokeThickness="2"
+                                         IsHitTestVisible="False"/>
+                               </Border>
+                               <Border Canvas.Left="{Binding BendHandleLeft}"
+                                     Canvas.Top="{Binding BendHandleTop}"
+                                     Width="12"
+                                     Height="12"
+                                     Background="#01FFFFFF"
+                                     CornerRadius="6"
+                                     Tag="bend"
+                                     PointerPressed="OnTransitionHandlePointerPressed"
+                                     PointerMoved="OnTransitionHandlePointerMoved"
+                                     PointerReleased="OnTransitionHandlePointerReleased"
+                                     IsVisible="{Binding IsSelected}">
+                                  <Ellipse Width="12"
+                                         Height="12"
+                                         Fill="#FBBF24"
+                                         Stroke="#78350F"
+                                         StrokeThickness="2"
+                                         IsHitTestVisible="False"/>
+                               </Border>
+                            <Border Canvas.Left="{Binding LabelLeft}"
+                                    Canvas.Top="{Binding LabelTop}"
+                                    Background="#252526"
+                                    Width="{Binding LabelWidth}"
+                                    Height="{Binding LabelHeight}"
+                                    Padding="4,2"
+                                    CornerRadius="4"
+                                    BorderBrush="#3e3e42"
+                                    BorderThickness="1"
+                                    PointerPressed="OnTransitionPointerPressed"
+                                    PointerMoved="OnTransitionPointerMoved"
+                                    PointerReleased="OnTransitionPointerReleased"
+                                    Tapped="OnTransitionTapped"
+                                    DoubleTapped="OnTransitionDoubleTapped"
+                                    IsVisible="{Binding !IsEditingCondition}">
+                                <TextBlock Text="{Binding DisplayCondition}"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           FontSize="11"/>
+                            </Border>
+                            <Border Canvas.Left="{Binding LabelLeft}"
+                                    Canvas.Top="{Binding LabelTop}"
+                                    Background="Transparent"
+                                    Width="{Binding LabelWidth}"
+                                    Height="{Binding LabelHeight}"
+                                    Padding="6,4"
+                                    CornerRadius="6"
+                                    BorderBrush="#FBBF24"
+                                    BorderThickness="2"
+                                    IsHitTestVisible="False"
+                                    IsVisible="{Binding IsSelected}" />
+                            <TextBox Canvas.Left="{Binding LabelLeft}"
+                                     Canvas.Top="{Binding LabelTop}"
+                                     Width="{Binding LabelEditorWidth}"
+                                     Height="{Binding LabelHeight}"
+                                     Text="{Binding Condition, Mode=TwoWay}"
+                                     IsVisible="{Binding IsEditingCondition}"
+                                     KeyDown="OnTransitionConditionKeyDown"
+                                     LostFocus="OnTransitionConditionLostFocus"/>
+                        </Canvas>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
-            <Path Data="M -40,50 L 0,50 M -12,42 L 0,50 L -12,58 L -12,42"
-                Stroke="White"
-                StrokeThickness="3"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top"
-                IsHitTestVisible="False"
-                IsVisible="{Binding IsInitialState}" />
+            <ItemsControl ItemsSource="{Binding DraftTransitions}" IsHitTestVisible="False">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Canvas />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
 
-            <TextBlock Text="{Binding Id}" 
-                       IsVisible="{Binding !IsEditing}"
-                       VerticalAlignment="Center" 
-                       HorizontalAlignment="Center"
-                       FontWeight="Bold"/>
+                <ItemsControl.ItemContainerTheme>
+                    <ControlTheme TargetType="ContentPresenter" x:DataType="vm:TransitionViewModel">
+                        <Setter Property="Canvas.Left" Value="0"/>
+                        <Setter Property="Canvas.Top" Value="0"/>
+                    </ControlTheme>
+                </ItemsControl.ItemContainerTheme>
 
-            <TextBox Text="{Binding Id, Mode=TwoWay}"
-                     IsVisible="{Binding IsEditing}"
-                     VerticalAlignment="Center"
-                     HorizontalAlignment="Center"
-                     MinWidth="60"
-                     KeyDown="OnTextBoxKeyDown"
-                     LostFocus="OnTextBoxLostFocus"/>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:TransitionViewModel">
+                        <Canvas Width="5000" Height="5000">
+                            <Path Data="{Binding PathData}"
+                                  Stroke="#7DD3FF"
+                                  StrokeThickness="3"
+                                  StrokeDashArray="4,4"/>
+                            <Path Data="{Binding ArrowHeadData}"
+                                  Fill="#7DD3FF"
+                                  Stroke="#7DD3FF"
+                                  StrokeThickness="2"/>
+                        </Canvas>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <ItemsControl ItemsSource="{Binding States}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Canvas />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemContainerTheme>
+                    <ControlTheme TargetType="ContentPresenter" x:DataType="vm:StateItemViewModel">
+                        <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                        <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                    </ControlTheme>
+                </ItemsControl.ItemContainerTheme>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:StateItemViewModel">
+                        <Grid PointerPressed="OnPointerPressed"
+                              PointerMoved="OnPointerMoved"
+                              PointerReleased="OnPointerReleased"
+                            PointerEntered="OnStatePointerEntered"
+                            PointerExited="OnStatePointerExited"
+                              DoubleTapped="OnDoubleTapped"
+                              Tapped="OnStateTapped"
+                              Background="Transparent"
+                              Width="{Binding RenderWidth}"
+                              Height="{Binding RenderHeight}">
+                            <Grid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Set as Initial State"
+                                              Click="OnSetInitialStateClicked"/>
+                                    <MenuItem Header="Add Self Transition"
+                                              Click="OnAddSelfTransitionClicked"/>
+                                    <MenuItem Header="Delete"
+                                              Click="OnDeleteStateClicked"/>
+                                </ContextMenu>
+                            </Grid.ContextMenu>
+
+                            <Ellipse Fill="#3c3c3c" Stroke="DodgerBlue" StrokeThickness="2"/>
+                            <Ellipse Fill="Transparent"
+                                     Stroke="#FBBF24"
+                                     StrokeThickness="5"
+                                     Margin="-8"
+                                     IsHitTestVisible="False"
+                                     IsVisible="{Binding IsSelected}"/>
+
+                            <Ellipse Width="10" Height="10" Fill="#FBBF24" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,4,0,0" IsHitTestVisible="False" IsVisible="{Binding IsSelected}"/>
+                            <Ellipse Width="10" Height="10" Fill="#FBBF24" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0" IsHitTestVisible="False" IsVisible="{Binding IsSelected}"/>
+                            <Ellipse Width="10" Height="10" Fill="#FBBF24" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4" IsHitTestVisible="False" IsVisible="{Binding IsSelected}"/>
+                            <Ellipse Width="10" Height="10" Fill="#FBBF24" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,0,0" IsHitTestVisible="False" IsVisible="{Binding IsSelected}"/>
+
+                            <Canvas IsHitTestVisible="False">
+                                <Ellipse Width="12"
+                                         Height="12"
+                                         Fill="#F8FAFC"
+                                         Stroke="#0EA5E9"
+                                         StrokeThickness="2"
+                                         Canvas.Left="{Binding HoverAnchorLeft}"
+                                         Canvas.Top="{Binding HoverAnchorTop}"
+                                         IsVisible="{Binding IsHoverAnchorVisible}"/>
+                            </Canvas>
+
+                            <Path Data="M -40,50 L 0,50 M -12,42 L 0,50 L -12,58 L -12,42"
+                                  Stroke="White"
+                                  StrokeThickness="3"
+                                  HorizontalAlignment="Left"
+                                  VerticalAlignment="Top"
+                                  IsHitTestVisible="False"
+                                  IsVisible="{Binding IsInitialState}" />
+
+                            <TextBlock Text="{Binding Id}"
+                                       IsVisible="{Binding !IsEditing}"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Center"
+                                       FontWeight="Bold"/>
+
+                            <TextBox Text="{Binding Id, Mode=TwoWay}"
+                                     IsVisible="{Binding IsEditing}"
+                                     VerticalAlignment="Center"
+                                     HorizontalAlignment="Center"
+                                     MinWidth="60"
+                                     KeyDown="OnTextBoxKeyDown"
+                                     LostFocus="OnTextBoxLostFocus"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border x:Name="SelectionRectangle"
+                    IsVisible="False"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    BorderBrush="#7DD3FF"
+                    BorderThickness="1"
+                    Background="#223FB5FF"
+                    Width="0"
+                    Height="0"
+                    IsHitTestVisible="False"
+                    ZIndex="1000"/>
         </Grid>
-    </DataTemplate>
-</ItemsControl.ItemTemplate>
-        </ItemsControl>
         
     </Grid>
 </UserControl>
