@@ -2,6 +2,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Media;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using OneWare.MyExtension.ViewModels;
 using Avalonia.Input;
 using System;
@@ -9,6 +12,11 @@ namespace OneWare.MyExtension.Views;
 
 public partial class FiniteStateMachineView : UserControl
 {
+    private const double DefaultZoomLevel = 1.0;
+    private const double MinZoomLevel = 0.4;
+    private const double MaxZoomLevel = 2.5;
+    private const double ZoomStep = 0.1;
+
     private enum TransitionDragMode
     {
         Bend,
@@ -28,18 +36,32 @@ public partial class FiniteStateMachineView : UserControl
     private FiniteStateMachineViewModel.UndoSnapshot? _stateEditUndoSnapshot;
     private StateItemViewModel? _editingState;
     private string? _editingStateOriginalId;
+    private string? _editingStateOriginalOutputAssignments;
+    private FiniteStateMachineViewModel.UndoSnapshot? _signalEditUndoSnapshot;
+    private SignalDefinitionViewModel? _editingSignal;
+    private SignalDefinitionViewModel? _editingSignalOriginal;
     private FiniteStateMachineViewModel.UndoSnapshot? _conditionEditUndoSnapshot;
     private TransitionViewModel? _editingTransition;
     private string? _editingTransitionOriginalCondition;
+    private FiniteStateMachineViewModel.UndoSnapshot? _transitionOutputEditUndoSnapshot;
+    private TransitionViewModel? _editingTransitionOutput;
+    private string? _editingTransitionOriginalOutputAssignments;
     private bool _isDraggingTransitionLayout;
     private TransitionViewModel? _layoutTransition;
     private FiniteStateMachineViewModel.UndoSnapshot? _transitionLayoutUndoSnapshot;
     private bool _transitionLayoutChanged;
     private TransitionDragMode _transitionDragMode;
+    private double _zoomLevel = DefaultZoomLevel;
+    private bool _isCursorModeEnabled;
+    private bool _isPanningCanvas;
+    private Point _lastCanvasPanSurfacePosition;
+    private double _panOffsetX;
+    private double _panOffsetY;
 
     public FiniteStateMachineView()
     {
         InitializeComponent();
+        UpdateZoomVisuals();
         AttachedToVisualTree += (_, _) =>
     {
         if (DataContext is FiniteStateMachineViewModel vm &&
@@ -251,6 +273,7 @@ public partial class FiniteStateMachineView : UserControl
                 _stateEditUndoSnapshot = mainVm.CreateUndoSnapshot();
                 _editingState = vm;
                 _editingStateOriginalId = vm.Id;
+                _editingStateOriginalOutputAssignments = vm.OutputAssignments;
             }
 
             vm.IsEditing = true;
@@ -261,23 +284,55 @@ public partial class FiniteStateMachineView : UserControl
         }
     }
 
-    private void OnTextBoxKeyDown(object? sender, KeyEventArgs e)
+    private void OnStateEditorKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter && sender is TextBox { DataContext: StateItemViewModel vm })
+        if (sender is not TextBox { DataContext: StateItemViewModel vm })
+            return;
+
+        if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
         {
+            if (DataContext is FiniteStateMachineViewModel mainVm)
+                mainVm.NormalizeStateOutput(vm);
+
+            CommitStateEdit(vm);
+            vm.IsEditing = false;
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Escape)
+        {
+            vm.Id = _editingStateOriginalId ?? vm.Id;
+            vm.OutputAssignments = _editingStateOriginalOutputAssignments ?? vm.OutputAssignments;
             CommitStateEdit(vm);
             vm.IsEditing = false;
             e.Handled = true;
         }
     }
 
-    private void OnTextBoxLostFocus(object? sender, RoutedEventArgs e)
+    private void OnStateEditorLostFocus(object? sender, RoutedEventArgs e)
     {
-        if (sender is TextBox { DataContext: StateItemViewModel vm })
+        if (sender is not TextBox { DataContext: StateItemViewModel vm })
+            return;
+
+        Dispatcher.UIThread.Post(() =>
         {
+            if (!vm.IsEditing || sender is not Visual visual)
+                return;
+
+            var editorRoot = visual.GetVisualAncestors().OfType<StackPanel>().FirstOrDefault(panel => Equals(panel.DataContext, vm));
+            if (editorRoot is not null
+                && editorRoot.GetVisualDescendants().OfType<InputElement>().Any(element => element.IsFocused))
+            {
+                return;
+            }
+
+            if (DataContext is FiniteStateMachineViewModel mainVm)
+                mainVm.NormalizeStateOutput(vm);
+
             CommitStateEdit(vm);
             vm.IsEditing = false;
-        }
+        }, DispatcherPriority.Background);
     }
     private void OnStateTapped(object? sender, TappedEventArgs e)
     {
@@ -348,6 +403,33 @@ public partial class FiniteStateMachineView : UserControl
         }
     }
 
+    private void OnTransitionOutputDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is not Control { DataContext: TransitionViewModel transition }
+            || DataContext is not FiniteStateMachineViewModel mainVm)
+        {
+            return;
+        }
+
+        mainVm.SelectTransition(transition);
+        _transitionOutputEditUndoSnapshot = mainVm.CreateUndoSnapshot();
+        _editingTransitionOutput = transition;
+        _editingTransitionOriginalOutputAssignments = transition.OutputAssignments;
+        transition.IsEditingOutputAssignments = true;
+
+        if (sender is Border border
+            && border.Parent is Canvas canvas)
+        {
+            var textBox = canvas.Children.OfType<TextBox>()
+                .FirstOrDefault(candidate => ReferenceEquals(candidate.DataContext, transition)
+                    && candidate.IsVisible);
+            textBox?.Focus();
+            textBox?.SelectAll();
+        }
+
+        e.Handled = true;
+    }
+
     private void OnTransitionTapped(object? sender, TappedEventArgs e)
     {
         if (sender is Control { DataContext: TransitionViewModel transition }
@@ -364,6 +446,70 @@ public partial class FiniteStateMachineView : UserControl
 
             e.Handled = true;
         }
+    }
+
+    private void OnSignalEditorGotFocus(object? sender, GotFocusEventArgs e)
+    {
+        if (sender is not InputElement { DataContext: SignalDefinitionViewModel signal }
+            || DataContext is not FiniteStateMachineViewModel mainVm)
+        {
+            return;
+        }
+
+        if (!ReferenceEquals(_editingSignal, signal))
+        {
+            _signalEditUndoSnapshot = mainVm.CreateUndoSnapshot();
+            _editingSignal = signal;
+            _editingSignalOriginal = signal.Clone();
+        }
+    }
+
+    private void OnSignalEditorKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not InputElement { DataContext: SignalDefinitionViewModel signal })
+            return;
+
+        if (e.Key == Key.Enter)
+        {
+            CommitSignalEdit(signal);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Escape)
+        {
+            if (_editingSignalOriginal is not null)
+            {
+                signal.Name = _editingSignalOriginal.Name;
+                signal.Direction = _editingSignalOriginal.Direction;
+                signal.Type = _editingSignalOriginal.Type;
+                signal.Size = _editingSignalOriginal.Size;
+            }
+
+            CommitSignalEdit(signal);
+            e.Handled = true;
+        }
+    }
+
+    private void OnSignalEditorLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not InputElement { DataContext: SignalDefinitionViewModel signal })
+            return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (sender is not Visual visual)
+                return;
+
+            var editorRoot = visual.GetVisualAncestors().OfType<Border>().FirstOrDefault(border => Equals(border.DataContext, signal));
+            if (editorRoot is not null
+                && editorRoot.GetVisualDescendants().OfType<InputElement>().Any(element => element.IsFocused))
+            {
+                return;
+            }
+
+            CommitSignalEdit(signal);
+        }, DispatcherPriority.Background);
     }
 
     private void OnTransitionPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -504,8 +650,57 @@ public partial class FiniteStateMachineView : UserControl
         }
     }
 
+    private void OnTransitionOutputKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox { DataContext: TransitionViewModel transition })
+            return;
+
+        if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            if (DataContext is FiniteStateMachineViewModel mainVm)
+                mainVm.NormalizeTransitionOutput(transition);
+
+            CommitTransitionOutputEdit(transition);
+            transition.IsEditingOutputAssignments = false;
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Escape)
+        {
+            transition.OutputAssignments = _editingTransitionOriginalOutputAssignments ?? transition.OutputAssignments;
+            CommitTransitionOutputEdit(transition);
+            transition.IsEditingOutputAssignments = false;
+            e.Handled = true;
+        }
+    }
+
+    private void OnTransitionOutputLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not TextBox { DataContext: TransitionViewModel transition })
+            return;
+
+        if (DataContext is FiniteStateMachineViewModel mainVm)
+            mainVm.NormalizeTransitionOutput(transition);
+
+        CommitTransitionOutputEdit(transition);
+        transition.IsEditingOutputAssignments = false;
+    }
+
     private void OnCanvasPointerMoved(object? sender, PointerEventArgs e)
     {
+        if (_isPanningCanvas)
+        {
+            var currentSurfacePosition = GetSurfacePosition(e);
+            var delta = currentSurfacePosition - _lastCanvasPanSurfacePosition;
+            _panOffsetX += delta.X;
+            _panOffsetY += delta.Y;
+            _lastCanvasPanSurfacePosition = currentSurfacePosition;
+            UpdateZoomVisuals();
+            e.Handled = true;
+            return;
+        }
+
         if (_isMarqueeSelecting && DataContext is FiniteStateMachineViewModel selectionVm)
         {
             var marqueePosition = GetEditorPosition(e);
@@ -539,6 +734,15 @@ public partial class FiniteStateMachineView : UserControl
         if (!e.GetCurrentPoint(EditorSurface).Properties.IsLeftButtonPressed)
             return;
 
+        if (_isCursorModeEnabled)
+        {
+            _isPanningCanvas = true;
+            _lastCanvasPanSurfacePosition = GetSurfacePosition(e);
+            e.Pointer.Capture(EditorSurface);
+            e.Handled = true;
+            return;
+        }
+
         _isMarqueeSelecting = true;
         _marqueeStartPosition = GetEditorPosition(e);
         UpdateMarquee(_marqueeStartPosition);
@@ -550,6 +754,14 @@ public partial class FiniteStateMachineView : UserControl
 
     private void OnCanvasPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        if (_isPanningCanvas)
+        {
+            _isPanningCanvas = false;
+            e.Pointer.Capture(null);
+            e.Handled = true;
+            return;
+        }
+
         if (_isMarqueeSelecting)
         {
             FinishMarqueeSelection(e);
@@ -601,7 +813,20 @@ public partial class FiniteStateMachineView : UserControl
 
     private Point GetEditorPosition(PointerEventArgs e)
     {
+        var surfacePosition = GetSurfacePosition(e);
+        return ToContentPosition(surfacePosition);
+    }
+
+    private Point GetSurfacePosition(PointerEventArgs e)
+    {
         return EditorSurface is null ? e.GetPosition(this) : e.GetPosition(EditorSurface);
+    }
+
+    private Point ToContentPosition(Point surfacePosition)
+    {
+        return new Point(
+            (surfacePosition.X - _panOffsetX) / _zoomLevel,
+            (surfacePosition.Y - _panOffsetY) / _zoomLevel);
     }
 
     private void UpdateMarquee(Point currentPosition)
@@ -652,9 +877,13 @@ public partial class FiniteStateMachineView : UserControl
             _stateEditUndoSnapshot = null;
             _editingState = null;
             _editingStateOriginalId = null;
+            _editingStateOriginalOutputAssignments = null;
             _conditionEditUndoSnapshot = null;
             _editingTransition = null;
             _editingTransitionOriginalCondition = null;
+            _transitionOutputEditUndoSnapshot = null;
+            _editingTransitionOutput = null;
+            _editingTransitionOriginalOutputAssignments = null;
             _isDraggingTransitionLayout = false;
             _layoutTransition = null;
             _transitionLayoutUndoSnapshot = null;
@@ -672,9 +901,13 @@ public partial class FiniteStateMachineView : UserControl
             _stateEditUndoSnapshot = null;
             _editingState = null;
             _editingStateOriginalId = null;
+            _editingStateOriginalOutputAssignments = null;
             _conditionEditUndoSnapshot = null;
             _editingTransition = null;
             _editingTransitionOriginalCondition = null;
+            _transitionOutputEditUndoSnapshot = null;
+            _editingTransitionOutput = null;
+            _editingTransitionOriginalOutputAssignments = null;
             _isDraggingTransitionLayout = false;
             _layoutTransition = null;
             _transitionLayoutUndoSnapshot = null;
@@ -696,7 +929,10 @@ public partial class FiniteStateMachineView : UserControl
             return;
 
         foreach (var transition in mainVm.Transitions)
+        {
             transition.IsEditingCondition = false;
+            transition.IsEditingOutputAssignments = false;
+        }
 
         mainVm.ClearSelection();
         mainVm.CancelPendingTransition();
@@ -739,6 +975,18 @@ public partial class FiniteStateMachineView : UserControl
         }
     }
 
+    private void OnDeleteSignalClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: SignalDefinitionViewModel signal }
+            && DataContext is FiniteStateMachineViewModel mainVm)
+        {
+            _signalEditUndoSnapshot = null;
+            _editingSignal = null;
+            _editingSignalOriginal = null;
+            mainVm.DeleteSignal(signal);
+        }
+    }
+
     private void CommitStateEdit(StateItemViewModel state)
     {
         if (!ReferenceEquals(_editingState, state)
@@ -746,12 +994,39 @@ public partial class FiniteStateMachineView : UserControl
             || _stateEditUndoSnapshot is null)
             return;
 
-        if (!string.Equals(_editingStateOriginalId, state.Id, StringComparison.Ordinal))
+        if (!string.Equals(_editingStateOriginalId, state.Id, StringComparison.Ordinal)
+            || !string.Equals(_editingStateOriginalOutputAssignments, state.OutputAssignments, StringComparison.Ordinal))
             mainVm.PushUndoSnapshot(_stateEditUndoSnapshot);
 
         _stateEditUndoSnapshot = null;
         _editingState = null;
         _editingStateOriginalId = null;
+        _editingStateOriginalOutputAssignments = null;
+    }
+
+    private void CommitSignalEdit(SignalDefinitionViewModel signal)
+    {
+        if (!ReferenceEquals(_editingSignal, signal)
+            || DataContext is not FiniteStateMachineViewModel mainVm
+            || _signalEditUndoSnapshot is null
+            || _editingSignalOriginal is null)
+        {
+            return;
+        }
+
+        mainVm.NormalizeAllOutputs();
+
+        if (!string.Equals(_editingSignalOriginal.Name, signal.Name, StringComparison.Ordinal)
+            || !string.Equals(_editingSignalOriginal.Direction, signal.Direction, StringComparison.Ordinal)
+            || !string.Equals(_editingSignalOriginal.Type, signal.Type, StringComparison.Ordinal)
+            || !string.Equals(_editingSignalOriginal.Size, signal.Size, StringComparison.Ordinal))
+        {
+            mainVm.PushUndoSnapshot(_signalEditUndoSnapshot);
+        }
+
+        _signalEditUndoSnapshot = null;
+        _editingSignal = null;
+        _editingSignalOriginal = null;
     }
 
     private void CommitTransitionConditionEdit(TransitionViewModel transition)
@@ -767,5 +1042,121 @@ public partial class FiniteStateMachineView : UserControl
         _conditionEditUndoSnapshot = null;
         _editingTransition = null;
         _editingTransitionOriginalCondition = null;
+    }
+
+    private void CommitTransitionOutputEdit(TransitionViewModel transition)
+    {
+        if (!ReferenceEquals(_editingTransitionOutput, transition)
+            || DataContext is not FiniteStateMachineViewModel mainVm
+            || _transitionOutputEditUndoSnapshot is null)
+        {
+            return;
+        }
+
+        if (!string.Equals(_editingTransitionOriginalOutputAssignments, transition.OutputAssignments, StringComparison.Ordinal))
+            mainVm.PushUndoSnapshot(_transitionOutputEditUndoSnapshot);
+
+        _transitionOutputEditUndoSnapshot = null;
+        _editingTransitionOutput = null;
+        _editingTransitionOriginalOutputAssignments = null;
+    }
+
+    private void OnGraphTypeSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox { SelectedItem: FsmGraphType selectedGraphType }
+            || DataContext is not FiniteStateMachineViewModel mainVm
+            || selectedGraphType == mainVm.GraphType)
+        {
+            return;
+        }
+
+        mainVm.PushUndoSnapshot(mainVm.CreateUndoSnapshot());
+        mainVm.GraphType = selectedGraphType;
+    }
+
+    private void OnZoomInClicked(object? sender, RoutedEventArgs e)
+    {
+        AdjustZoom(ZoomStep, GetViewportCenter());
+    }
+
+    private void OnZoomOutClicked(object? sender, RoutedEventArgs e)
+    {
+        AdjustZoom(-ZoomStep, GetViewportCenter());
+    }
+
+    private void OnCursorModeClicked(object? sender, RoutedEventArgs e)
+    {
+        _isCursorModeEnabled = !_isCursorModeEnabled;
+        UpdateCursorModeVisuals();
+    }
+
+    private void OnEditorPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (Math.Abs(e.Delta.Y) < double.Epsilon)
+            return;
+
+        AdjustZoom(e.Delta.Y > 0 ? ZoomStep : -ZoomStep, GetSurfacePosition(e));
+        e.Handled = true;
+    }
+
+    private void AdjustZoom(double delta, Point? anchorSurfacePosition = null)
+    {
+        SetZoom(_zoomLevel + delta, anchorSurfacePosition);
+    }
+
+    private void SetZoom(double zoomLevel, Point? anchorSurfacePosition = null)
+    {
+        var clampedZoomLevel = Math.Clamp(Math.Round(zoomLevel, 2), MinZoomLevel, MaxZoomLevel);
+        if (Math.Abs(clampedZoomLevel - _zoomLevel) < 0.001)
+            return;
+
+        if (anchorSurfacePosition is Point anchor)
+        {
+            var contentAnchor = ToContentPosition(anchor);
+            _zoomLevel = clampedZoomLevel;
+            _panOffsetX = anchor.X - (contentAnchor.X * _zoomLevel);
+            _panOffsetY = anchor.Y - (contentAnchor.Y * _zoomLevel);
+            UpdateZoomVisuals();
+            return;
+        }
+
+        _zoomLevel = clampedZoomLevel;
+        UpdateZoomVisuals();
+    }
+
+    private void UpdateZoomVisuals()
+    {
+        if (EditorContent?.RenderTransform is TransformGroup transformGroup
+            && transformGroup.Children.Count >= 2
+            && transformGroup.Children[0] is ScaleTransform scaleTransform
+            && transformGroup.Children[1] is TranslateTransform translateTransform)
+        {
+            scaleTransform.ScaleX = _zoomLevel;
+            scaleTransform.ScaleY = _zoomLevel;
+            translateTransform.X = _panOffsetX;
+            translateTransform.Y = _panOffsetY;
+        }
+
+        if (ZoomLevelText is not null)
+            ZoomLevelText.Text = $"{_zoomLevel:P0}";
+
+        UpdateCursorModeVisuals();
+    }
+
+    private void UpdateCursorModeVisuals()
+    {
+        if (CursorModeButton is not null)
+            CursorModeButton.Content = _isCursorModeEnabled ? "Cursor Mode: On" : "Cursor Mode: Off";
+
+        if (EditorSurface is not null)
+            EditorSurface.Cursor = _isCursorModeEnabled ? new Cursor(StandardCursorType.SizeAll) : new Cursor(StandardCursorType.Arrow);
+    }
+
+    private Point GetViewportCenter()
+    {
+        if (EditorSurface is null)
+            return default;
+
+        return new Point(EditorSurface.Bounds.Width / 2, EditorSurface.Bounds.Height / 2);
     }
 }

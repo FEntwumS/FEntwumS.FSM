@@ -3,12 +3,14 @@
              xmlns:vm="using:OneWare.MyExtension.ViewModels"
              x:Class="OneWare.MyExtension.Views.FiniteStateMachineView"
              x:DataType="vm:FiniteStateMachineViewModel"
+             x:Name="Root"
              Focusable="True"
              KeyDown="OnEditorKeyDown">
     
     <Grid ColumnDefinitions="250, *">
         
         <Border Grid.Column="0" Background="#252526" BorderBrush="#3e3e42" BorderThickness="0,0,1,0">
+         <ScrollViewer VerticalScrollBarVisibility="Auto">
          <StackPanel Margin="15" Spacing="10">
     <TextBlock Text="FSM EDITOR" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
     
@@ -20,9 +22,46 @@
             Click="OnSaveAsClicked" 
             HorizontalAlignment="Stretch"/>
 
-    <Button Content="Add New State" 
+        <Button Content="Add New State" 
             Command="{Binding AddStateCommand}" 
             HorizontalAlignment="Stretch"/>
+
+                <Grid ColumnDefinitions="*,*,Auto"
+          ColumnSpacing="8">
+        <Button Content="Zoom In"
+            Click="OnZoomInClicked"
+            HorizontalAlignment="Stretch"/>
+        <Button Grid.Column="1"
+            Content="Zoom Out"
+            Click="OnZoomOutClicked"
+            HorizontalAlignment="Stretch"/>
+        <Border Grid.Column="2"
+            Padding="10,0"
+            Background="#1e1e1e"
+            CornerRadius="6"
+            MinWidth="64">
+            <TextBlock x:Name="ZoomLevelText"
+                   Text="100%"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   FontWeight="SemiBold"/>
+        </Border>
+        </Grid>
+
+        <Button x:Name="CursorModeButton"
+            Content="Cursor Mode: Off"
+            Click="OnCursorModeClicked"
+            HorizontalAlignment="Stretch"/>
+
+    <Grid ColumnDefinitions="Auto,*"
+          ColumnSpacing="8">
+        <TextBlock Text="Graph Type"
+                   VerticalAlignment="Center"/>
+        <ComboBox Grid.Column="1"
+                  ItemsSource="{Binding GraphTypes}"
+                  SelectedItem="{Binding GraphType}"
+                  SelectionChanged="OnGraphTypeSelectionChanged"/>
+    </Grid>
 
     <TextBlock Text="{Binding TransitionHint}"
                TextWrapping="Wrap"
@@ -31,11 +70,120 @@
     <Button Content="Load XML" 
             Click="OnLoadClicked" 
             HorizontalAlignment="Stretch"/>
+    <Border Background="#1f1f21"
+            BorderBrush="#3e3e42"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="10">
+        <StackPanel Spacing="8">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="8">
+                <TextBlock Text="Signals"
+                           FontWeight="Bold"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="1"
+                        Content="Add"
+                        Command="{Binding AddSignalCommand}"/>
+            </Grid>
+
+            <ItemsControl ItemsSource="{Binding Signals}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SignalDefinitionViewModel">
+                        <Border Background="#252526"
+                                BorderBrush="#3e3e42"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="8"
+                                Margin="0,0,0,6">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="Auto,*"
+                                      ColumnSpacing="8">
+                                    <TextBlock Text="Name"
+                                               VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="1"
+                                             Text="{Binding Name, Mode=TwoWay}"
+                                             GotFocus="OnSignalEditorGotFocus"
+                                             LostFocus="OnSignalEditorLostFocus"
+                                             KeyDown="OnSignalEditorKeyDown"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto,*"
+                                      ColumnSpacing="8">
+                                    <TextBlock Text="Dir"
+                                               VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="1"
+                                             Text="{Binding Direction, Mode=TwoWay}"
+                                             GotFocus="OnSignalEditorGotFocus"
+                                             LostFocus="OnSignalEditorLostFocus"
+                                             KeyDown="OnSignalEditorKeyDown"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto,*"
+                                      ColumnSpacing="8">
+                                    <TextBlock Text="Type"
+                                               VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="1"
+                                             Text="{Binding Type, Mode=TwoWay}"
+                                             GotFocus="OnSignalEditorGotFocus"
+                                             LostFocus="OnSignalEditorLostFocus"
+                                             KeyDown="OnSignalEditorKeyDown"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto,*,Auto"
+                                      ColumnSpacing="8">
+                                    <TextBlock Text="Size"
+                                               VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="1"
+                                             Text="{Binding Size, Mode=TwoWay}"
+                                             GotFocus="OnSignalEditorGotFocus"
+                                             LostFocus="OnSignalEditorLostFocus"
+                                             KeyDown="OnSignalEditorKeyDown"/>
+                                    <Button Grid.Column="2"
+                                            Content="Delete"
+                                            Click="OnDeleteSignalClicked"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Border>
 </StackPanel>
+        </ScrollViewer>
         </Border>
 
-        <Grid x:Name="EditorSurface" Grid.Column="1" Background="#1e1e1e" Focusable="True" PointerPressed="OnCanvasPointerPressed" PointerMoved="OnCanvasPointerMoved" PointerReleased="OnCanvasPointerReleased">
-            <ItemsControl ItemsSource="{Binding Transitions}">
+                <Grid Grid.Column="1"
+                            Background="#1e1e1e"
+                            ClipToBounds="True">
+                        <Grid x:Name="EditorSurface"
+                                    Background="Transparent"
+                                    Focusable="True"
+                                    PointerPressed="OnCanvasPointerPressed"
+                                    PointerMoved="OnCanvasPointerMoved"
+                                    PointerReleased="OnCanvasPointerReleased"
+                                    PointerWheelChanged="OnEditorPointerWheelChanged">
+                                <Grid x:Name="EditorContent"
+                                            RenderTransformOrigin="0,0">
+                                        <Grid.RenderTransform>
+                                            <TransformGroup>
+                                                <ScaleTransform ScaleX="1"
+                                                                ScaleY="1"/>
+                                                <TranslateTransform X="0"
+                                                                    Y="0"/>
+                                            </TransformGroup>
+                                        </Grid.RenderTransform>
+                        <Canvas Width="1600"
+                                Height="900"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                                IsHitTestVisible="False">
+                            <Rectangle Width="1600"
+                                       Height="900"
+                                       Canvas.Left="1"
+                                       Canvas.Top="1"
+                                       Fill="Transparent"
+                                       Stroke="#FBBF24"
+                                       StrokeThickness="3"/>
+                        </Canvas>
+                        <ItemsControl ItemsSource="{Binding Transitions}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <Canvas />
@@ -175,6 +323,38 @@
                                      IsVisible="{Binding IsEditingCondition}"
                                      KeyDown="OnTransitionConditionKeyDown"
                                      LostFocus="OnTransitionConditionLostFocus"/>
+                            <Border Canvas.Left="{Binding LabelLeft}"
+                                    Canvas.Top="{Binding OutputLabelTop}"
+                                    Background="#1F2937"
+                                    Width="{Binding OutputLabelWidth}"
+                                    Height="{Binding OutputLabelHeight}"
+                                    Padding="4,2"
+                                    CornerRadius="4"
+                                    BorderBrush="#3e3e42"
+                                    BorderThickness="1"
+                                    PointerPressed="OnTransitionPointerPressed"
+                                    PointerMoved="OnTransitionPointerMoved"
+                                    PointerReleased="OnTransitionPointerReleased"
+                                    Tapped="OnTransitionTapped"
+                                    DoubleTapped="OnTransitionOutputDoubleTapped"
+                                    IsVisible="{Binding #Root.DataContext.IsMealyGraph}">
+                                <TextBlock Text="{Binding DisplayOutputAssignments}"
+                                           Foreground="#DDEBFF"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           FontSize="10"
+                                           TextWrapping="Wrap"/>
+                            </Border>
+                            <TextBox Canvas.Left="{Binding LabelLeft}"
+                                     Canvas.Top="{Binding OutputLabelTop}"
+                                     Width="{Binding OutputEditorWidth}"
+                                     Height="{Binding OutputEditorHeight}"
+                                     Text="{Binding OutputAssignments, Mode=TwoWay}"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     IsVisible="{Binding IsEditingOutputAssignments}"
+                                     KeyDown="OnTransitionOutputKeyDown"
+                                     LostFocus="OnTransitionOutputLostFocus"/>
                         </Canvas>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -279,19 +459,48 @@
                                   IsHitTestVisible="False"
                                   IsVisible="{Binding IsInitialState}" />
 
-                            <TextBlock Text="{Binding Id}"
-                                       IsVisible="{Binding !IsEditing}"
-                                       VerticalAlignment="Center"
-                                       HorizontalAlignment="Center"
-                                       FontWeight="Bold"/>
+                            <StackPanel IsVisible="{Binding !IsEditing}"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Width="82"
+                                        Spacing="4">
+                                <TextBlock Text="{Binding Id}"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           FontWeight="Bold"
+                                           TextWrapping="Wrap"/>
+                                <Border Background="#223FB5FF"
+                                        CornerRadius="6"
+                                        Padding="6,3"
+                                        IsVisible="{Binding HasOutputAssignments}">
+                                    <TextBlock Text="{Binding DisplayOutputAssignments}"
+                                               HorizontalAlignment="Center"
+                                               TextAlignment="Center"
+                                               FontSize="10"
+                                               Foreground="#DDEBFF"
+                                               TextWrapping="Wrap"/>
+                                </Border>
+                            </StackPanel>
 
-                            <TextBox Text="{Binding Id, Mode=TwoWay}"
-                                     IsVisible="{Binding IsEditing}"
-                                     VerticalAlignment="Center"
-                                     HorizontalAlignment="Center"
-                                     MinWidth="60"
-                                     KeyDown="OnTextBoxKeyDown"
-                                     LostFocus="OnTextBoxLostFocus"/>
+                            <StackPanel IsVisible="{Binding IsEditing}"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Width="82"
+                                        Spacing="4">
+                                <TextBox Text="{Binding Id, Mode=TwoWay}"
+                                         MinWidth="60"
+                                         HorizontalAlignment="Stretch"
+                                         KeyDown="OnStateEditorKeyDown"
+                                         LostFocus="OnStateEditorLostFocus"/>
+                                <TextBox Text="{Binding OutputAssignments, Mode=TwoWay}"
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         MinHeight="44"
+                                         IsVisible="{Binding #Root.DataContext.IsMooreGraph}"
+                                         HorizontalAlignment="Stretch"
+                                         KeyDown="OnStateEditorKeyDown"
+                                         LostFocus="OnStateEditorLostFocus"/>
+                            </StackPanel>
                         </Grid>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -308,6 +517,8 @@
                     Height="0"
                     IsHitTestVisible="False"
                     ZIndex="1000"/>
+                </Grid>
+            </Grid>
         </Grid>
         
     </Grid>

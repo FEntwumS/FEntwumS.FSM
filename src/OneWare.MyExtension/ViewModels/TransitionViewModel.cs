@@ -54,9 +54,11 @@ public partial class TransitionViewModel : ObservableObject
     [ObservableProperty] private ConnectorSide _sourceSide = ConnectorSide.Right;
     [ObservableProperty] private ConnectorSide _targetSide = ConnectorSide.Left;
     [ObservableProperty] private string _condition = "1";
+    [ObservableProperty] private string _outputAssignments = string.Empty;
     [ObservableProperty] private double _bend = 48;
     [ObservableProperty] private bool _isAutoRouted = true;
     [ObservableProperty] private bool _isEditingCondition;
+    [ObservableProperty] private bool _isEditingOutputAssignments;
     [ObservableProperty] private bool _isSelected;
     [ObservableProperty] private double _sourceAnchorLane;
     [ObservableProperty] private double _targetAnchorLane;
@@ -107,6 +109,20 @@ public partial class TransitionViewModel : ObservableObject
 
     public string DisplayCondition => string.IsNullOrWhiteSpace(Condition) ? "1" : Condition;
 
+    public bool HasOutputAssignments => !string.IsNullOrWhiteSpace(OutputAssignments);
+
+    public string DisplayOutputAssignments => string.IsNullOrWhiteSpace(OutputAssignments) ? "<outputs>" : OutputAssignments;
+
+    public double OutputLabelWidth => Math.Max(60, GetLongestDisplayOutputLineLength() * 8 + 16);
+
+    public double OutputLabelHeight => Math.Max(LabelHeightValue, GetOutputLineCount() * 14 + 8);
+
+    public double OutputLabelTop => LabelTop + LabelHeight + 6;
+
+    public double OutputEditorWidth => Math.Max(120, OutputLabelWidth + 24);
+
+    public double OutputEditorHeight => Math.Max(44, GetOutputLineCount() * 18 + 12);
+
     partial void OnSourceStateChanged(StateItemViewModel? oldValue, StateItemViewModel? newValue)
     {
         DetachState(oldValue);
@@ -132,6 +148,17 @@ public partial class TransitionViewModel : ObservableObject
         OnPropertyChanged(nameof(LabelWidth));
         OnPropertyChanged(nameof(LabelEditorWidth));
         OnPropertyChanged(nameof(LabelLeft));
+    }
+
+    partial void OnOutputAssignmentsChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasOutputAssignments));
+        OnPropertyChanged(nameof(DisplayOutputAssignments));
+        OnPropertyChanged(nameof(OutputLabelWidth));
+        OnPropertyChanged(nameof(OutputLabelHeight));
+        OnPropertyChanged(nameof(OutputLabelTop));
+        OnPropertyChanged(nameof(OutputEditorWidth));
+        OnPropertyChanged(nameof(OutputEditorHeight));
     }
 
     partial void OnBendChanged(double value) => RefreshGeometry();
@@ -264,6 +291,20 @@ public partial class TransitionViewModel : ObservableObject
 
         ConditionPosition.X = (start.X + end.X) / 2.0 + (nx * labelOffset * labelSide);
         ConditionPosition.Y = (start.Y + end.Y) / 2.0 + (ny * labelOffset * labelSide);
+    }
+
+    private int GetLongestDisplayOutputLineLength()
+    {
+        return DisplayOutputAssignments
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.None)
+            .Select(line => line.Length)
+            .DefaultIfEmpty(0)
+            .Max();
+    }
+
+    private int GetOutputLineCount()
+    {
+        return Math.Max(1, DisplayOutputAssignments.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).Length);
     }
 
     private void UpdateManualRoute()

@@ -1,0 +1,168 @@
+<?xml version="1.0"?>
+<scxml xmlns="http://www.w3.org/2005/07/scxml" version="1.0" profile="diagram" name="bikelight_moore" initial="Aus" graph_type="moore">
+
+  <signals>
+    <signal name = "K" dir="in" type = "bit"/>
+    <signal name = "T" dir="in" type = "bit"/>
+    <signal name = "L" dir="out" type = "vector" size = "3" />
+  </signals>
+
+  <variables>
+  </variables>
+
+  <states>
+    <state id = "Aus">
+      <position x="112" y="224" />
+      <size width="144" height="64" />
+      <transitions>
+        <transition cond = "K " target = "AEin">
+          <conditionPosition x="193" y="151"/>
+          <startPoint x="307" y="259"/>
+          <endPoint x="236" y="188"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+        <transition cond = "not K " target = "Aus">
+          <conditionPosition x="25" y="162"/>
+          <startPoint x="50" y="162"/>
+          <endPoint x="76" y="188"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+      </transitions>
+      <during>
+        <assign signal = "L" expr = "0"/>
+      </during>
+    </state>
+
+    <state id = "AEin">
+      <position x="272" y="224" />
+      <size width="144" height="64" />
+      <transitions>
+        <transition cond = "K " target = "Ein1">
+          <conditionPosition x="353" y="151"/>
+          <startPoint x="467" y="259"/>
+          <endPoint x="396" y="188"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+        <transition cond = "not K " target = "AEin">
+          <conditionPosition x="244" y="278"/>
+          <startPoint x="237" y="189"/>
+          <endPoint x="272" y="224"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+      </transitions>
+      <during>
+        <assign signal = "L" expr = "7"/>
+      </during>
+    </state>
+
+    <state id = "Ein1">
+      <position x="432" y="224" />
+      <size width="144" height="64" />
+      <transitions>
+        <transition cond = "T and not K " target = "Ein2">
+          <conditionPosition x="513" y="151"/>
+          <startPoint x="627" y="259"/>
+          <endPoint x="556" y="188"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+        <transition cond = "K " target = "Aus">
+          <conditionPosition x="289" y="294"/>
+          <startPoint x="77" y="189"/>
+          <endPoint x="148" y="260"/>
+          <ctrlPoints>
+            <ctrlPoint x="299" y="322"/>
+          </ctrlPoints>
+        </transition>
+        <transition cond = "not K and not T " target = "Ein1">
+          <conditionPosition x="461" y="278"/>
+          <startPoint x="468" y="260"/>
+          <endPoint x="432" y="224"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+      </transitions>
+      <during>
+        <assign signal = "L" expr = "4"/>
+      </during>
+    </state>
+
+    <state id = "Ein2">
+      <position x="592" y="224" />
+      <size width="144" height="64" />
+      <transitions>
+        <transition cond = "T and not K " target = "Ein3">
+          <conditionPosition x="673" y="151"/>
+          <startPoint x="787" y="259"/>
+          <endPoint x="716" y="188"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+        <transition cond = "K " target = "Aus">
+          <conditionPosition x="297" y="321"/>
+          <startPoint x="77" y="189"/>
+          <endPoint x="112" y="224"/>
+          <ctrlPoints>
+            <ctrlPoint x="483" y="345"/>
+            <ctrlPoint x="130" y="343"/>
+          </ctrlPoints>
+        </transition>
+        <transition cond = "not K and not T " target = "Ein2">
+          <conditionPosition x="621" y="278"/>
+          <startPoint x="628" y="260"/>
+          <endPoint x="592" y="224"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+      </transitions>
+      <during>
+        <assign signal = "L" expr = "2"/>
+      </during>
+    </state>
+
+    <state id = "Ein3">
+      <position x="752" y="224" />
+      <size width="144" height="64" />
+      <transitions>
+        <transition cond = "K " target = "Aus">
+          <conditionPosition x="360" y="380"/>
+          <startPoint x="77" y="189"/>
+          <endPoint x="77" y="189"/>
+          <ctrlPoints>
+            <ctrlPoint x="629" y="387"/>
+            <ctrlPoint x="120" y="426"/>
+          </ctrlPoints>
+        </transition>
+        <transition cond = "T and not K " target = "Ein1">
+          <conditionPosition x="555" y="104"/>
+          <startPoint x="432" y="224"/>
+          <endPoint x="432" y="224"/>
+          <ctrlPoints>
+            <ctrlPoint x="598" y="106"/>
+          </ctrlPoints>
+        </transition>
+        <transition cond = "not K and not T " target = "Ein3">
+          <conditionPosition x="773" y="285"/>
+          <startPoint x="788" y="260"/>
+          <endPoint x="752" y="224"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+      </transitions>
+      <during>
+        <assign signal = "L" expr = "1"/>
+      </during>
+    </state>
+
+  </states>
+
+  <startNode target="Aus" condition="1">
+    <conditionPosition x="114" y="142"/>
+    <position x="48" y="144"/>
+    <targetPosition x="112" y="112"/>
+  </startNode>
+</scxml>

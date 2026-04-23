@@ -1,9 +1,31 @@
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace OneWare.MyExtension.ViewModels;
 
 public static class FsmXmlStateHelper
 {
+    private static readonly Regex OutputAssignmentPattern = new(
+        @"^(?<signal>[^=]+?)\s*=\s*(?<expr>.+)$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private static readonly Regex BinaryValuePattern = new(
+        "^[01]+$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    public static FsmGraphType ReadGraphType(XDocument? document, XNamespace ns)
+    {
+        var graphType = document?.Root?.Attribute("graph_type")?.Value;
+        return string.Equals(graphType, "mealy", StringComparison.OrdinalIgnoreCase)
+            ? FsmGraphType.Mealy
+            : FsmGraphType.Moore;
+    }
+
+    public static void ApplyGraphType(XDocument document, FsmGraphType graphType)
+    {
+        document.Root?.SetAttributeValue("graph_type", graphType.ToString().ToLowerInvariant());
+    }
+
     public static string ResolveInitialStateId(XDocument? document, XNamespace ns)
     {
         if (document?.Root is null)
@@ -111,7 +133,9 @@ public static class FsmXmlStateHelper
     public static IEnumerable<TransitionViewModel> ReadTransitions(
         XElement stateElement,
         XNamespace ns,
-        IReadOnlyDictionary<string, StateItemViewModel> statesById)
+        IReadOnlyDictionary<string, StateItemViewModel> statesById,
+        IEnumerable<SignalDefinitionViewModel> signals,
+        FsmGraphType graphType)
     {
         var sourceId = stateElement.Attribute("id")?.Value;
         if (string.IsNullOrWhiteSpace(sourceId) || !statesById.TryGetValue(sourceId, out var sourceState))
@@ -145,6 +169,9 @@ public static class FsmXmlStateHelper
                 Condition = string.IsNullOrWhiteSpace(transitionElement.Attribute("cond")?.Value)
                     ? "1"
                     : transitionElement.Attribute("cond")!.Value,
+                OutputAssignments = graphType == FsmGraphType.Mealy
+                    ? ReadTransitionOutputAssignments(transitionElement, ns, signals)
+                    : string.Empty,
                 IsAutoRouted = isAutoRouted
             };
 
@@ -166,9 +193,9 @@ public static class FsmXmlStateHelper
         }
     }
 
-    public static XElement CreateTransitionElement(TransitionViewModel transition, XNamespace ns)
+    public static XElement CreateTransitionElement(TransitionViewModel transition, XNamespace ns, IEnumerable<SignalDefinitionViewModel> signals, FsmGraphType graphType)
     {
-        return new XElement(ns + "transition",
+        var transitionElement = new XElement(ns + "transition",
             new XAttribute("cond", string.IsNullOrWhiteSpace(transition.Condition) ? "1" : transition.Condition),
             new XAttribute("target", transition.TargetState?.Id ?? string.Empty),
             new XAttribute("autoRoute", transition.IsAutoRouted),
@@ -177,6 +204,19 @@ public static class FsmXmlStateHelper
             CreatePointElement(ns + "endPoint", transition.EndPoint),
             new XElement(ns + "ctrlPoints",
                 transition.ControlPoints.Select(ctrlPoint => CreatePointElement(ns + "ctrlPoint", ctrlPoint))));
+
+        if (graphType == FsmGraphType.Mealy)
+        {
+            foreach (var assignElement in CreateAssignElements(transition.OutputAssignments, ns, signals))
+                transitionElement.Add(assignElement);
+        }
+
+        return transitionElement;
+    }
+
+    public static string ReadTransitionOutputAssignments(XElement transitionElement, XNamespace ns, IEnumerable<SignalDefinitionViewModel> signals)
+    {
+        return ReadAssignments(transitionElement.Elements(ns + "assign"), signals);
     }
 
     private static TransitionPointViewModel ReadPoint(XElement? element)
@@ -200,5 +240,193 @@ public static class FsmXmlStateHelper
         return new XElement(elementName,
             new XAttribute("x", (int)point.X),
             new XAttribute("y", (int)point.Y));
+    }
+
+    public static string ReadOutputAssignments(XElement stateElement, XNamespace ns, IEnumerable<SignalDefinitionViewModel> signals)
+    {
+        return ReadAssignments(
+            stateElement.Element(ns + "during")?.Elements(ns + "assign"),
+            signals);
+    }
+
+    public static XElement CreateDuringElement(StateItemViewModel state, XNamespace ns, IEnumerable<SignalDefinitionViewModel> signals)
+    {
+        var duringElement = new XElement(ns + "during");
+
+        foreach (var assignElement in CreateAssignElements(state.OutputAssignments, ns, signals))
+            duringElement.Add(assignElement);
+
+        return duringElement;
+    }
+
+    private static string ReadAssignments(IEnumerable<XElement>? assignmentElements, IEnumerable<SignalDefinitionViewModel> signals)
+    {
+        var assignments = (assignmentElements ?? Enumerable.Empty<XElement>())
+            .Select(assign => (
+                Signal: assign.Attribute("signal")?.Value?.Trim() ?? string.Empty,
+                Expression: assign.Attribute("expr")?.Value?.Trim() ?? string.Empty))
+            .Where(assignment => !string.IsNullOrWhiteSpace(assignment.Signal) && !string.IsNullOrWhiteSpace(assignment.Expression))
+            .ToList();
+
+        if (assignments is null || assignments.Count == 0)
+            return string.Empty;
+
+        var outputSignals = GetOutputSignals(signals).ToList();
+        if (outputSignals.Count == 0)
+            return string.Join(Environment.NewLine, assignments.Select(assignment => assignment.Expression));
+
+        var formattedOutputs = outputSignals
+            .Select(outputSignal => assignments.FirstOrDefault(assignment => string.Equals(assignment.Signal, outputSignal.Name, StringComparison.OrdinalIgnoreCase)))
+            .Where(assignment => assignment.Signal is not null)
+            .Select(assignment => FormatOutputValue(assignment.Expression!, outputSignals.First(outputSignal => string.Equals(outputSignal.Name, assignment.Signal, StringComparison.OrdinalIgnoreCase))))
+            .Where(value => !string.IsNullOrWhiteSpace(value));
+
+        return string.Join(Environment.NewLine, formattedOutputs);
+    }
+
+    private static IEnumerable<XElement> CreateAssignElements(string outputAssignments, XNamespace ns, IEnumerable<SignalDefinitionViewModel> signals)
+    {
+        var lines = outputAssignments
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        var outputSignals = GetOutputSignals(signals).ToList();
+        if (outputSignals.Count == 0)
+            return Array.Empty<XElement>();
+
+        var assignElements = new List<XElement>();
+
+        for (var index = 0; index < lines.Length && index < outputSignals.Count; index++)
+        {
+            var signal = outputSignals[index];
+            var expression = ParseDisplayValue(lines[index]);
+            if (string.IsNullOrWhiteSpace(expression))
+                continue;
+
+            assignElements.Add(new XElement(ns + "assign",
+                new XAttribute("signal", signal.Name.Trim()),
+                new XAttribute("expr", expression)));
+        }
+
+        return assignElements;
+    }
+
+    public static string NormalizeOutputAssignments(string outputAssignments, IEnumerable<SignalDefinitionViewModel> signals)
+    {
+        if (string.IsNullOrWhiteSpace(outputAssignments))
+            return string.Empty;
+
+        var outputSignals = GetOutputSignals(signals).ToList();
+        if (outputSignals.Count == 0)
+            return outputAssignments.Trim();
+
+        var lines = outputAssignments
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        var normalizedValues = outputSignals
+            .Select((signal, index) => index < lines.Length ? FormatOutputValue(ParseDisplayValue(lines[index]), signal) : null)
+            .Where(value => !string.IsNullOrWhiteSpace(value));
+
+        return string.Join(Environment.NewLine, normalizedValues);
+    }
+
+    public static IReadOnlyList<SignalDefinitionViewModel> ReadSignals(XDocument? document, XNamespace ns)
+    {
+        if (document?.Root is null)
+            return Array.Empty<SignalDefinitionViewModel>();
+
+        return document.Root
+            .Element(ns + "signals")?
+            .Elements(ns + "signal")
+            .Select(signalElement => new SignalDefinitionViewModel
+            {
+                Name = signalElement.Attribute("name")?.Value?.Trim() ?? string.Empty,
+                Direction = signalElement.Attribute("dir")?.Value?.Trim() ?? string.Empty,
+                Type = signalElement.Attribute("type")?.Value?.Trim() ?? string.Empty,
+                Size = signalElement.Attribute("size")?.Value?.Trim() ?? string.Empty
+            })
+            .Where(signal => !string.IsNullOrWhiteSpace(signal.Name))
+                .ToList()
+                ?? new List<SignalDefinitionViewModel>();
+    }
+
+    public static void SyncSignalsMetadata(XDocument document, XNamespace ns, IEnumerable<SignalDefinitionViewModel> signals)
+    {
+        if (document.Root is null)
+            return;
+
+        var signalsElement = document.Root.Element(ns + "signals");
+        if (signalsElement is null)
+        {
+            signalsElement = new XElement(ns + "signals");
+
+            var variablesElement = document.Root.Element(ns + "variables");
+            if (variablesElement is not null)
+                variablesElement.AddBeforeSelf(signalsElement);
+            else
+                document.Root.AddFirst(signalsElement);
+        }
+
+        signalsElement.RemoveAll();
+
+        foreach (var signal in signals.Where(signal => !string.IsNullOrWhiteSpace(signal.Name)))
+        {
+            var signalElement = new XElement(ns + "signal",
+                new XAttribute("name", signal.Name.Trim()));
+
+            if (!string.IsNullOrWhiteSpace(signal.Direction))
+                signalElement.SetAttributeValue("dir", signal.Direction.Trim());
+
+            if (!string.IsNullOrWhiteSpace(signal.Type))
+                signalElement.SetAttributeValue("type", signal.Type.Trim());
+
+            if (!string.IsNullOrWhiteSpace(signal.Size))
+                signalElement.SetAttributeValue("size", signal.Size.Trim());
+
+            signalsElement.Add(signalElement);
+        }
+    }
+
+    private static IEnumerable<SignalDefinitionViewModel> GetOutputSignals(IEnumerable<SignalDefinitionViewModel> signals)
+    {
+        return signals.Where(signal => signal.IsOutput && !string.IsNullOrWhiteSpace(signal.Name));
+    }
+
+    private static string FormatOutputValue(string expression, SignalDefinitionViewModel signal)
+    {
+        var trimmedExpression = expression.Trim();
+        if (BinaryValuePattern.IsMatch(trimmedExpression))
+            return NormalizeBinaryWidth(trimmedExpression, signal.BitWidth);
+
+        if (int.TryParse(trimmedExpression, out var decimalValue))
+        {
+            var binaryValue = Convert.ToString(Math.Max(0, decimalValue), 2);
+            return NormalizeBinaryWidth(binaryValue, signal.BitWidth);
+        }
+
+        return trimmedExpression;
+    }
+
+    private static string ParseDisplayValue(string displayValue)
+    {
+        var trimmedValue = displayValue.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedValue))
+            return string.Empty;
+
+        if (BinaryValuePattern.IsMatch(trimmedValue))
+            return Convert.ToInt32(trimmedValue, 2).ToString();
+
+        var match = OutputAssignmentPattern.Match(trimmedValue);
+        if (match.Success)
+            return match.Groups["expr"].Value.Trim();
+
+        return trimmedValue;
+    }
+
+    private static string NormalizeBinaryWidth(string binaryValue, int bitWidth)
+    {
+        var normalizedWidth = Math.Max(1, bitWidth);
+        return binaryValue.Length >= normalizedWidth
+            ? binaryValue
+            : binaryValue.PadLeft(normalizedWidth, '0');
     }
 }

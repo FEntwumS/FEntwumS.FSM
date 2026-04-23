@@ -17,6 +17,7 @@ public partial class StateItemViewModel : ObservableObject
     [ObservableProperty] private bool _isEditing;
     [ObservableProperty] private bool _isInitialState;
     [ObservableProperty] private bool _isSelected;
+    [ObservableProperty] private string _outputAssignments = string.Empty;
     [ObservableProperty] private bool _isHoverAnchorVisible;
     [ObservableProperty] private double _hoverAnchorLeft;
     [ObservableProperty] private double _hoverAnchorTop;
@@ -26,7 +27,11 @@ public partial class StateItemViewModel : ObservableObject
 
     public double RenderHeight => VisualDiameter;
 
+    public bool HasOutputAssignments => !string.IsNullOrWhiteSpace(OutputAssignments);
+
     public Point HoverAnchorPoint => new(X + HoverAnchorLeft + HoverAnchorRadius, Y + HoverAnchorTop + HoverAnchorRadius);
+
+    public string DisplayOutputAssignments => string.IsNullOrWhiteSpace(OutputAssignments) ? string.Empty : OutputAssignments;
 
     public Point GetConnectorPoint(ConnectorSide side)
     {
@@ -159,6 +164,12 @@ public partial class StateItemViewModel : ObservableObject
         var dx = left.X - right.X;
         var dy = left.Y - right.Y;
         return (dx * dx) + (dy * dy);
+    }
+
+    partial void OnOutputAssignmentsChanged(string value)
+    {
+        OnPropertyChanged(nameof(DisplayOutputAssignments));
+        OnPropertyChanged(nameof(HasOutputAssignments));
     }
 }
 
