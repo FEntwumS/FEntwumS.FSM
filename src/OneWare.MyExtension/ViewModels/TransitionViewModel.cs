@@ -60,6 +60,7 @@ public partial class TransitionViewModel : ObservableObject
     [ObservableProperty] private bool _isEditingCondition;
     [ObservableProperty] private bool _isEditingOutputAssignments;
     [ObservableProperty] private bool _isSelected;
+    [ObservableProperty] private bool _isInitialTransition;
     [ObservableProperty] private double _sourceAnchorLane;
     [ObservableProperty] private double _targetAnchorLane;
     [ObservableProperty] private double _routeLane;
@@ -93,9 +94,26 @@ public partial class TransitionViewModel : ObservableObject
 
     public double LabelTop => ConditionPosition.Y;
 
-    public double StartHandleLeft => GetEndpointHandleCenter(SourceState, StartPoint.ToPoint()).X - HandleRadius;
+    public double StartHandleLeft => IsInitialTransition
+        ? StartPoint.X - HandleRadius
+        : GetEndpointHandleCenter(SourceState, StartPoint.ToPoint()).X - HandleRadius;
 
-    public double StartHandleTop => GetEndpointHandleCenter(SourceState, StartPoint.ToPoint()).Y - HandleRadius;
+    public double StartHandleTop => IsInitialTransition
+        ? StartPoint.Y - HandleRadius
+        : GetEndpointHandleCenter(SourceState, StartPoint.ToPoint()).Y - HandleRadius;
+
+    public string StartDotData
+    {
+        get
+        {
+            if (!IsInitialTransition)
+                return string.Empty;
+            var p = StartPoint.ToPoint();
+            const double r = 7.0;
+            return string.Create(CultureInfo.InvariantCulture,
+                $"M {p.X - r},{p.Y} A {r},{r} 0 1 0 {p.X + r},{p.Y} A {r},{r} 0 1 0 {p.X - r},{p.Y} Z");
+        }
+    }
 
     public double EndHandleLeft => GetEndpointHandleCenter(TargetState, EndPoint.ToPoint()).X - HandleRadius;
 
@@ -173,7 +191,9 @@ public partial class TransitionViewModel : ObservableObject
 
     public void RefreshGeometry()
     {
-        if (IsAutoRouted)
+        if (IsInitialTransition)
+            UpdateInitialTransitionRoute();
+        else if (IsAutoRouted)
             AutoRoute();
         else
             UpdateManualRoute();
@@ -183,11 +203,18 @@ public partial class TransitionViewModel : ObservableObject
 
     public Point GetBendHandlePoint()
     {
-        if (SourceState is null || TargetState is null)
-            return ConditionPosition.ToPoint();
-
         var start = StartPoint.ToPoint();
         var end = EndPoint.ToPoint();
+
+        if (IsInitialTransition)
+        {
+            if (ControlPoints.Count > 0)
+                return EvaluateQuadraticPoint(start, ControlPoints[0].ToPoint(), end, 0.5);
+            return new Point((start.X + end.X) / 2.0, (start.Y + end.Y) / 2.0);
+        }
+
+        if (SourceState is null || TargetState is null)
+            return ConditionPosition.ToPoint();
 
         if (ControlPoints.Count > 0)
             return EvaluateQuadraticPoint(start, ControlPoints[0].ToPoint(), end, 0.5);
@@ -200,6 +227,24 @@ public partial class TransitionViewModel : ObservableObject
 
     public void SetManualBendPoint(Point bendPoint)
     {
+        if (IsInitialTransition)
+        {
+            var iStart = StartPoint.ToPoint();
+            var iEnd = EndPoint.ToPoint();
+            var iCtrl = CreateQuadraticControlPointForMidpoint(iStart, bendPoint, iEnd);
+            if (ControlPoints.Count == 0)
+                ControlPoints.Add(TransitionPointViewModel.FromPoint(iCtrl));
+            else
+            {
+                ControlPoints[0].X = iCtrl.X;
+                ControlPoints[0].Y = iCtrl.Y;
+                while (ControlPoints.Count > 1)
+                    ControlPoints.RemoveAt(ControlPoints.Count - 1);
+            }
+            RefreshGeometry();
+            return;
+        }
+
         EnsureManualAnchorAngles();
         IsAutoRouted = false;
 
@@ -223,6 +268,14 @@ public partial class TransitionViewModel : ObservableObject
 
     public void SetSourceAnchorFromPointer(Point pointerPosition)
     {
+        if (IsInitialTransition)
+        {
+            StartPoint.X = pointerPosition.X;
+            StartPoint.Y = pointerPosition.Y;
+            RefreshGeometry();
+            return;
+        }
+
         if (SourceState is null)
             return;
 
@@ -344,8 +397,57 @@ public partial class TransitionViewModel : ObservableObject
         ConditionPosition.Y = curveMidpoint.Y + (ny * ManualLabelOffset);
     }
 
+    private void UpdateInitialTransitionRoute()
+    {
+        if (TargetState is null)
+            return;
+
+        var endPoint = TargetState.GetConnectorPointTowards(StartPoint.ToPoint());
+        EndPoint.X = endPoint.X;
+        EndPoint.Y = endPoint.Y;
+
+        var startPoint = StartPoint.ToPoint();
+
+        if (ControlPoints.Count == 0)
+        {
+            ConditionPosition.X = (startPoint.X + endPoint.X) / 2.0;
+            ConditionPosition.Y = (startPoint.Y + endPoint.Y) / 2.0 - ManualLabelOffset;
+        }
+        else
+        {
+            var control = ControlPoints[0].ToPoint();
+            var curveMidpoint = new Point(
+                (0.25 * startPoint.X) + (0.5 * control.X) + (0.25 * endPoint.X),
+                (0.25 * startPoint.Y) + (0.5 * control.Y) + (0.25 * endPoint.Y));
+            var dx = endPoint.X - startPoint.X;
+            var dy = endPoint.Y - startPoint.Y;
+            var length = Math.Max(1.0, Math.Sqrt((dx * dx) + (dy * dy)));
+            var nx = -dy / length;
+            var ny = dx / length;
+            ConditionPosition.X = curveMidpoint.X + (nx * ManualLabelOffset);
+            ConditionPosition.Y = curveMidpoint.Y + (ny * ManualLabelOffset);
+        }
+    }
+
     private string BuildPathData()
     {
+        if (IsInitialTransition)
+        {
+            if (TargetState is null)
+                return string.Empty;
+            var iStart = StartPoint.ToPoint();
+            var iEnd = EndPoint.ToPoint();
+            if (ControlPoints.Count == 0)
+                return string.Create(CultureInfo.InvariantCulture, $"M {iStart.X},{iStart.Y} L {iEnd.X},{iEnd.Y}");
+            if (ControlPoints.Count == 1)
+            {
+                var iCtrl = ControlPoints[0].ToPoint();
+                return string.Create(CultureInfo.InvariantCulture, $"M {iStart.X},{iStart.Y} Q {iCtrl.X},{iCtrl.Y} {iEnd.X},{iEnd.Y}");
+            }
+            var iSegments = string.Join(" ", ControlPoints.Select(p => string.Create(CultureInfo.InvariantCulture, $"L {p.X},{p.Y}")));
+            return string.Create(CultureInfo.InvariantCulture, $"M {iStart.X},{iStart.Y} {iSegments} L {iEnd.X},{iEnd.Y}");
+        }
+
         if (SourceState is null || TargetState is null)
             return string.Empty;
 
@@ -384,7 +486,9 @@ public partial class TransitionViewModel : ObservableObject
 
     private string BuildArrowHeadData()
     {
-        if (SourceState is null || TargetState is null)
+        if (!IsInitialTransition && (SourceState is null || TargetState is null))
+            return string.Empty;
+        if (TargetState is null)
             return string.Empty;
 
         var tip = EndPoint.ToPoint();
@@ -539,6 +643,7 @@ public partial class TransitionViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(PathData));
         OnPropertyChanged(nameof(ArrowHeadData));
+        OnPropertyChanged(nameof(StartDotData));
         OnPropertyChanged(nameof(LabelWidth));
         OnPropertyChanged(nameof(LabelEditorWidth));
         OnPropertyChanged(nameof(LabelLeft));

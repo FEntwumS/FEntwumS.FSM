@@ -70,6 +70,32 @@
     <Button Content="Load XML" 
             Click="OnLoadClicked" 
             HorizontalAlignment="Stretch"/>
+
+    <Separator Margin="0,4" Background="#3e3e42"/>
+    <TextBlock Text="BACKEND"
+               FontWeight="Bold"
+               FontSize="12"
+               Margin="0,0,0,4"
+               Foreground="#b0b0b0"/>
+
+    <Grid ColumnDefinitions="Auto,*,*" ColumnSpacing="6">
+        <TextBlock Text="Generate"
+                   VerticalAlignment="Center"
+                   FontWeight="SemiBold"/>
+        <Button Grid.Column="1"
+                Content="VHDL"
+                Click="OnGenerateVhdlClicked"
+                HorizontalAlignment="Stretch"/>
+        <Button Grid.Column="2"
+                Content="C"
+                Click="OnGenerateCClicked"
+                HorizontalAlignment="Stretch"/>
+    </Grid>
+
+    <Button Content="Verify"
+            Click="OnVerifyClicked"
+            HorizontalAlignment="Stretch"/>
+
     <Border Background="#1f1f21"
             BorderBrush="#3e3e42"
             BorderThickness="1"
@@ -183,6 +209,93 @@
                                        Stroke="#FBBF24"
                                        StrokeThickness="3"/>
                         </Canvas>
+
+                        <!-- Initial Transitions -->
+                        <ItemsControl ItemsSource="{Binding InitialTransitions}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><Canvas /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerTheme>
+                                <ControlTheme TargetType="ContentPresenter" x:DataType="vm:TransitionViewModel">
+                                    <Setter Property="Canvas.Left" Value="0"/>
+                                    <Setter Property="Canvas.Top" Value="0"/>
+                                </ControlTheme>
+                            </ItemsControl.ItemContainerTheme>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:TransitionViewModel">
+                                    <Canvas Width="5000" Height="5000">
+                                        <!-- Hit test transparent path -->
+                                        <Path Data="{Binding PathData}" Stroke="Transparent" StrokeThickness="14"
+                                              PointerPressed="OnTransitionPointerPressed" PointerMoved="OnTransitionPointerMoved"
+                                              PointerReleased="OnTransitionPointerReleased" Tapped="OnTransitionTapped"
+                                              DoubleTapped="OnTransitionDoubleTapped"/>
+                                        <!-- Selection glow -->
+                                        <Path Data="{Binding PathData}" Stroke="#66FBBF24" StrokeThickness="10"
+                                              IsVisible="{Binding IsSelected}"/>
+                                        <!-- Main white path -->
+                                        <Path Data="{Binding PathData}" Stroke="White" StrokeThickness="3"/>
+                                        <!-- Selected yellow path -->
+                                        <Path Data="{Binding PathData}" Stroke="#FBBF24" StrokeThickness="5"
+                                              IsVisible="{Binding IsSelected}"/>
+                                        <!-- Arrowhead -->
+                                        <Path Data="{Binding ArrowHeadData}" Fill="White" Stroke="White" StrokeThickness="2"/>
+                                        <!-- Filled start dot (FSM initial state marker) - draggable -->
+                                        <Path Data="{Binding StartDotData}" Fill="White" Stroke="White" StrokeThickness="1"
+                                              Tag="start"
+                                              PointerPressed="OnTransitionHandlePointerPressed"
+                                              PointerMoved="OnTransitionHandlePointerMoved"
+                                              PointerReleased="OnTransitionHandlePointerReleased"
+                                              Cursor="SizeAll"/>
+                                        <!-- Start handle (moves free start point) -->
+                                        <Border Canvas.Left="{Binding StartHandleLeft}" Canvas.Top="{Binding StartHandleTop}"
+                                                Width="20" Height="20" Background="#01FFFFFF" CornerRadius="10"
+                                                Tag="start"
+                                                PointerPressed="OnTransitionHandlePointerPressed"
+                                                PointerMoved="OnTransitionHandlePointerMoved"
+                                                PointerReleased="OnTransitionHandlePointerReleased"
+                                                IsVisible="{Binding IsSelected}">
+                                            <Ellipse Width="20" Height="20" Fill="#F8FAFC" Stroke="#0EA5E9"
+                                                     StrokeThickness="2" IsHitTestVisible="False"/>
+                                        </Border>
+                                        <!-- Bend handle -->
+                                        <Border Canvas.Left="{Binding BendHandleLeft}" Canvas.Top="{Binding BendHandleTop}"
+                                                Width="12" Height="12" Background="#01FFFFFF" CornerRadius="6"
+                                                Tag="bend"
+                                                PointerPressed="OnTransitionHandlePointerPressed"
+                                                PointerMoved="OnTransitionHandlePointerMoved"
+                                                PointerReleased="OnTransitionHandlePointerReleased"
+                                                IsVisible="{Binding IsSelected}">
+                                            <Ellipse Width="12" Height="12" Fill="#FBBF24" Stroke="#78350F"
+                                                     StrokeThickness="2" IsHitTestVisible="False"/>
+                                        </Border>
+                                        <!-- Condition label (view mode) -->
+                                        <Border Canvas.Left="{Binding LabelLeft}" Canvas.Top="{Binding LabelTop}"
+                                                Background="#252526" Width="{Binding LabelWidth}" Height="{Binding LabelHeight}"
+                                                Padding="4,2" CornerRadius="4" BorderBrush="#3e3e42" BorderThickness="1"
+                                                PointerPressed="OnTransitionPointerPressed" PointerMoved="OnTransitionPointerMoved"
+                                                PointerReleased="OnTransitionPointerReleased" Tapped="OnTransitionTapped"
+                                                DoubleTapped="OnTransitionDoubleTapped"
+                                                IsVisible="{Binding !IsEditingCondition}">
+                                            <TextBlock Text="{Binding DisplayCondition}" Foreground="White"
+                                                       HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
+                                        </Border>
+                                        <!-- Selection border on label -->
+                                        <Border Canvas.Left="{Binding LabelLeft}" Canvas.Top="{Binding LabelTop}"
+                                                Background="Transparent" Width="{Binding LabelWidth}" Height="{Binding LabelHeight}"
+                                                Padding="6,4" CornerRadius="6" BorderBrush="#FBBF24" BorderThickness="2"
+                                                IsHitTestVisible="False" IsVisible="{Binding IsSelected}"/>
+                                        <!-- Condition editor TextBox -->
+                                        <TextBox Canvas.Left="{Binding LabelLeft}" Canvas.Top="{Binding LabelTop}"
+                                                 Width="{Binding LabelEditorWidth}" Height="{Binding LabelHeight}"
+                                                 Text="{Binding Condition, Mode=TwoWay}"
+                                                 IsVisible="{Binding IsEditingCondition}"
+                                                 KeyDown="OnTransitionConditionKeyDown"
+                                                 LostFocus="OnTransitionConditionLostFocus"/>
+                                    </Canvas>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
                         <ItemsControl ItemsSource="{Binding Transitions}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -420,6 +533,10 @@
                                 <ContextMenu>
                                     <MenuItem Header="Set as Initial State"
                                               Click="OnSetInitialStateClicked"/>
+                                    <MenuItem Header="Set as Final State"
+                                              Click="OnSetFinalStateClicked"/>
+                                    <MenuItem Header="Remove Final State Marker"
+                                              Click="OnRemoveFinalStateClicked"/>
                                     <MenuItem Header="Add Self Transition"
                                               Click="OnAddSelfTransitionClicked"/>
                                     <MenuItem Header="Delete"
@@ -428,6 +545,13 @@
                             </Grid.ContextMenu>
 
                             <Ellipse Fill="#3c3c3c" Stroke="DodgerBlue" StrokeThickness="2"/>
+                            <!-- Final state double-circle inner ring -->
+                            <Ellipse Fill="Transparent"
+                                     Stroke="DodgerBlue"
+                                     StrokeThickness="2"
+                                     Margin="10"
+                                     IsHitTestVisible="False"
+                                     IsVisible="{Binding IsFinalState}"/>
                             <Ellipse Fill="Transparent"
                                      Stroke="#FBBF24"
                                      StrokeThickness="5"
@@ -452,12 +576,12 @@
                             </Canvas>
 
                             <Path Data="M -40,50 L 0,50 M -12,42 L 0,50 L -12,58 L -12,42"
-                                  Stroke="White"
+                                  Stroke="Transparent"
                                   StrokeThickness="3"
                                   HorizontalAlignment="Left"
                                   VerticalAlignment="Top"
                                   IsHitTestVisible="False"
-                                  IsVisible="{Binding IsInitialState}" />
+                                  IsVisible="False" />
 
                             <StackPanel IsVisible="{Binding !IsEditing}"
                                         HorizontalAlignment="Center"

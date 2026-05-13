@@ -12,10 +12,11 @@ public partial class StateItemViewModel : ObservableObject
     [ObservableProperty] private string _id = "NEW_STATE";
     [ObservableProperty] private double _x;
     [ObservableProperty] private double _y;
-    [ObservableProperty] private double _width = 144; // Default from your template
+    [ObservableProperty] private double _width = 144;
     [ObservableProperty] private double _height = 64;
     [ObservableProperty] private bool _isEditing;
     [ObservableProperty] private bool _isInitialState;
+    [ObservableProperty] private bool _isFinalState;
     [ObservableProperty] private bool _isSelected;
     [ObservableProperty] private string _outputAssignments = string.Empty;
     [ObservableProperty] private bool _isHoverAnchorVisible;

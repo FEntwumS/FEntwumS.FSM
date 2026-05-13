@@ -38,7 +38,7 @@ public static class FsmXmlStateHelper
         return document.Root.Attribute("initial")?.Value ?? string.Empty;
     }
 
-    public static void SyncInitialStateMetadata(XDocument document, XNamespace ns, IEnumerable<StateItemViewModel> states)
+    public static void SyncInitialStateMetadata(XDocument document, XNamespace ns, IEnumerable<StateItemViewModel> states, TransitionViewModel? initialTransition = null)
     {
         if (document.Root is null)
             return;
@@ -62,15 +62,100 @@ public static class FsmXmlStateHelper
         }
 
         startNode.SetAttributeValue("target", initialStateId);
-        startNode.SetAttributeValue("condition", startNode.Attribute("condition")?.Value ?? "1");
+        startNode.SetAttributeValue("condition", initialTransition?.Condition ?? startNode.Attribute("condition")?.Value ?? string.Empty);
 
-        EnsurePositionElement(startNode, ns + "conditionPosition", 293, 59);
-
-        if (initialState is not null)
+        if (initialTransition is not null)
         {
-            EnsurePositionElement(startNode, ns + "position", initialState.X - 92, initialState.Y - 70);
-            EnsurePositionElement(startNode, ns + "targetPosition", initialState.X - 36, initialState.Y + 204);
+            SetOrUpdatePositionElement(startNode, ns + "position", initialTransition.StartPoint.X, initialTransition.StartPoint.Y);
+            SetOrUpdatePositionElement(startNode, ns + "endPoint", initialTransition.EndPoint.X, initialTransition.EndPoint.Y);
+            SetOrUpdatePositionElement(startNode, ns + "conditionPosition", initialTransition.ConditionPosition.X, initialTransition.ConditionPosition.Y);
+
+            var ctrlPointsEl = startNode.Element(ns + "ctrlPoints");
+            if (ctrlPointsEl is null)
+            {
+                ctrlPointsEl = new XElement(ns + "ctrlPoints");
+                startNode.Add(ctrlPointsEl);
+            }
+            ctrlPointsEl.RemoveAll();
+            foreach (var cp in initialTransition.ControlPoints)
+                ctrlPointsEl.Add(new XElement(ns + "ctrlPoint", new XAttribute("x", (int)cp.X), new XAttribute("y", (int)cp.Y)));
         }
+        else if (initialState is not null)
+        {
+            EnsurePositionElement(startNode, ns + "conditionPosition", 293, 59);
+            EnsurePositionElement(startNode, ns + "position", initialState.X - 92, initialState.Y - 70);
+            EnsurePositionElement(startNode, ns + "endPoint", initialState.X - 36, initialState.Y + 50);
+        }
+    }
+
+    private static void SetOrUpdatePositionElement(XElement parent, XName elementName, double x, double y)
+    {
+        var element = parent.Element(elementName);
+        if (element is null)
+        {
+            element = new XElement(elementName);
+            parent.Add(element);
+        }
+        element.SetAttributeValue("x", (int)x);
+        element.SetAttributeValue("y", (int)y);
+    }
+
+    public static TransitionViewModel? ReadInitialTransition(XDocument? document, XNamespace ns, IReadOnlyDictionary<string, StateItemViewModel> statesById)
+    {
+        var startNode = document?.Root?.Element(ns + "startNode");
+        if (startNode is null)
+            return null;
+
+        var targetId = startNode.Attribute("target")?.Value;
+        if (string.IsNullOrWhiteSpace(targetId) || !statesById.TryGetValue(targetId, out var targetState))
+            return null;
+
+        var position = startNode.Element(ns + "position");
+        var endPointEl = startNode.Element(ns + "endPoint");
+        var condPosEl = startNode.Element(ns + "conditionPosition");
+        var ctrlPointsEl = startNode.Element(ns + "ctrlPoints");
+
+        var startX = position is not null && double.TryParse(position.Attribute("x")?.Value, out var sx) ? sx : targetState.X - 80;
+        var startY = position is not null && double.TryParse(position.Attribute("y")?.Value, out var sy) ? sy : targetState.Y + targetState.RenderHeight / 2.0;
+        var endX = endPointEl is not null && double.TryParse(endPointEl.Attribute("x")?.Value, out var ex) ? ex : (double?)null;
+        var endY = endPointEl is not null && double.TryParse(endPointEl.Attribute("y")?.Value, out var ey) ? ey : (double?)null;
+        var condX = condPosEl is not null && double.TryParse(condPosEl.Attribute("x")?.Value, out var cx) ? cx : (startX + (endX ?? startX)) / 2.0;
+        var condY = condPosEl is not null && double.TryParse(condPosEl.Attribute("y")?.Value, out var cy) ? cy : startY - 16;
+
+        var condition = startNode.Attribute("condition")?.Value ?? string.Empty;
+
+        var t = new TransitionViewModel
+        {
+            IsInitialTransition = true,
+            TargetState = targetState,
+            Condition = condition,
+            IsAutoRouted = false
+        };
+        t.StartPoint.X = startX;
+        t.StartPoint.Y = startY;
+
+        if (ctrlPointsEl is not null)
+        {
+            foreach (var cp in ctrlPointsEl.Elements(ns + "ctrlPoint"))
+            {
+                var cpx = double.TryParse(cp.Attribute("x")?.Value, out var cpxv) ? cpxv : 0;
+                var cpy = double.TryParse(cp.Attribute("y")?.Value, out var cpyv) ? cpyv : 0;
+                t.ControlPoints.Add(new TransitionPointViewModel(cpx, cpy));
+            }
+        }
+
+        t.RefreshGeometry(); // computes EndPoint based on StartPoint → TargetState
+
+        // Override endPoint and conditionPosition only if they were saved
+        if (endX.HasValue && endY.HasValue)
+        {
+            t.EndPoint.X = endX.Value;
+            t.EndPoint.Y = endY.Value;
+        }
+        t.ConditionPosition.X = condX;
+        t.ConditionPosition.Y = condY;
+
+        return t;
     }
 
     private static void EnsurePositionElement(XElement parent, XName elementName, double x, double y)
@@ -119,8 +204,32 @@ public static class FsmXmlStateHelper
     EnsurePositionElement(startNode, ns + "targetPosition", initialState.X - 36, initialState.Y + 204);
 }
 
-    public static void RemoveInitialState(XDocument document, XNamespace ns)
+    public static IReadOnlyList<string> ReadFinalStateIds(XDocument? document, XNamespace ns)
     {
+        if (document?.Root is null)
+            return Array.Empty<string>();
+
+        return document.Root
+            .Elements(ns + "finalState")
+            .Select(el => el.Attribute("id")?.Value ?? string.Empty)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToList();
+    }
+
+    public static void SyncFinalStatesMetadata(XDocument document, XNamespace ns, IEnumerable<StateItemViewModel> states)
+    {
+        if (document.Root is null)
+            return;
+
+        // Remove all existing <finalState> elements from root
+        document.Root.Elements(ns + "finalState").Remove();
+
+        // Re-add one <finalState id="..."/> per final state
+        foreach (var state in states.Where(s => s.IsFinalState))
+            document.Root.Add(new XElement(ns + "finalState", new XAttribute("id", state.Id)));
+    }
+
+    public static void RemoveInitialState(XDocument document, XNamespace ns)    {
         if (document.Root is null) return;
 
         // 'initial' Attribut entfernen

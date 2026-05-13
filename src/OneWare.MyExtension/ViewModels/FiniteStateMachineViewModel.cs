@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Notifications;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Core;
@@ -35,6 +36,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     public ObservableCollection<StateItemViewModel> States { get; } = new();
     public ObservableCollection<SignalDefinitionViewModel> Signals { get; } = new();
     public ObservableCollection<TransitionViewModel> Transitions { get; } = new();
+    public ObservableCollection<TransitionViewModel> InitialTransitions { get; } = new();
     public ObservableCollection<TransitionViewModel> DraftTransitions { get; } = new();
     public TransitionViewModel DraftTransition { get; } = new() { IsAutoRouted = false };
     public IReadOnlyList<FsmGraphType> GraphTypes { get; } = Enum.GetValues<FsmGraphType>();
@@ -52,7 +54,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     public sealed record PointSnapshot(double X, double Y);
     public sealed record SignalSnapshot(string Name, string Direction, string Type, string Size);
 
-    public sealed record StateSnapshot(string Id, double X, double Y, double Width, double Height, bool IsInitialState, string OutputAssignments);
+    public sealed record StateSnapshot(string Id, double X, double Y, double Width, double Height, bool IsInitialState, bool IsFinalState, string OutputAssignments);
 
     public sealed record TransitionSnapshot(
         int SourceIndex,
@@ -71,7 +73,15 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         PointSnapshot ConditionPosition,
         IReadOnlyList<PointSnapshot> ControlPoints);
 
-    public sealed record UndoSnapshot(FsmGraphType GraphType, IReadOnlyList<SignalSnapshot> Signals, IReadOnlyList<StateSnapshot> States, IReadOnlyList<TransitionSnapshot> Transitions);
+    public sealed record InitialTransitionSnapshot(
+        int TargetIndex,
+        string Condition,
+        PointSnapshot StartPoint,
+        PointSnapshot EndPoint,
+        PointSnapshot ConditionPosition,
+        IReadOnlyList<PointSnapshot> ControlPoints);
+
+    public sealed record UndoSnapshot(FsmGraphType GraphType, IReadOnlyList<SignalSnapshot> Signals, IReadOnlyList<StateSnapshot> States, IReadOnlyList<TransitionSnapshot> Transitions, IReadOnlyList<InitialTransitionSnapshot> InitialTransitions);
 
     public bool IsMooreGraph => GraphType == FsmGraphType.Moore;
 
@@ -178,6 +188,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     {
         FsmXmlStateHelper.ApplyGraphType(doc, GraphType);
         FsmXmlStateHelper.SyncSignalsMetadata(doc, ns, Signals);
+        FsmXmlStateHelper.SyncFinalStatesMetadata(doc, ns, States);
 
         var statesContainer = doc.Descendants(ns + "states").FirstOrDefault();
         if (statesContainer == null)
@@ -206,15 +217,21 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             statesContainer.Add(stateElement);
         }
 
-        FsmXmlStateHelper.SyncInitialStateMetadata(doc, ns, States);
+        FsmXmlStateHelper.SyncInitialStateMetadata(doc, ns, States, InitialTransitions.FirstOrDefault());
     }
 
+    public Task ShowMessageAsync(string title, string message, MessageBoxIcon icon, Window? owner = null)
+        => _windowService?.ShowMessageAsync(title, message, icon, owner) ?? Task.CompletedTask;
+
+    public void ShowNotification(string title, string message, NotificationType type = NotificationType.Information)
+        => _windowService?.ShowNotification(title, message, type);
 
     public void LoadFromFile(string path)
     {
         Signals.Clear();
         States.Clear();
         Transitions.Clear();
+        InitialTransitions.Clear();
         CancelPendingTransition();
         ClearUndoHistory();
 
@@ -234,6 +251,8 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             GraphType = FsmXmlStateHelper.ReadGraphType(_originalDocument, _ns);
 
             var initialStateId = FsmXmlStateHelper.ResolveInitialStateId(_originalDocument, _ns);
+            var finalStateIds = FsmXmlStateHelper.ReadFinalStateIds(_originalDocument, _ns)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             foreach (var stateEl in _originalDocument.Descendants(_ns + "state"))
             {
@@ -251,7 +270,8 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
                     OutputAssignments = GraphType == FsmGraphType.Moore
                         ? FsmXmlStateHelper.ReadOutputAssignments(stateEl, _ns, Signals)
                         : string.Empty,
-                    IsInitialState = string.Equals(stateId, initialStateId, StringComparison.OrdinalIgnoreCase)
+                    IsInitialState = string.Equals(stateId, initialStateId, StringComparison.OrdinalIgnoreCase),
+                    IsFinalState = finalStateIds.Contains(stateId)
                 });
             }
 
@@ -260,6 +280,17 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             {
                 foreach (var transition in FsmXmlStateHelper.ReadTransitions(stateEl, _ns, statesById, Signals, GraphType))
                     Transitions.Add(transition);
+            }
+
+            // Load initial transition from XML
+            var initTransition = FsmXmlStateHelper.ReadInitialTransition(_originalDocument, _ns, statesById);
+            if (initTransition is not null)
+                InitialTransitions.Add(initTransition);
+            else
+            {
+                var initialState = States.FirstOrDefault(s => s.IsInitialState);
+                if (initialState is not null)
+                    InitialTransitions.Add(CreateInitialTransition(initialState));
             }
 
             RebalanceAutoTransitions();
@@ -272,6 +303,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             Signals.Clear();
             States.Clear();
             Transitions.Clear();
+            InitialTransitions.Clear();
         }
     }
 
@@ -295,6 +327,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     private void AddState()
     {
         PushUndoSnapshot(CreateUndoSnapshot());
+        var isFirst = States.Count == 0;
         States.Add(new StateItemViewModel
         {
             X = 50,
@@ -303,8 +336,11 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             Width = 144,
             Height = 64,
             OutputAssignments = string.Empty,
-            IsInitialState = States.Count == 0
+            IsInitialState = isFirst
         });
+
+        if (isFirst)
+            SyncInitialTransitions();
     }
 
     [RelayCommand]
@@ -656,6 +692,9 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
         foreach (var transition in Transitions)
             transition.IsSelected = false;
+
+        foreach (var transition in InitialTransitions)
+            transition.IsSelected = false;
     }
 
     public void ToggleStateSelection(StateItemViewModel state)
@@ -682,6 +721,9 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
         foreach (var transition in Transitions)
             transition.IsSelected = ReferenceEquals(transition, selectedTransition);
+
+        foreach (var transition in InitialTransitions)
+            transition.IsSelected = ReferenceEquals(transition, selectedTransition);
     }
 
     public void ToggleTransitionSelection(TransitionViewModel transition)
@@ -696,13 +738,17 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
         foreach (var transition in Transitions)
             transition.IsSelected = false;
+
+        foreach (var transition in InitialTransitions)
+            transition.IsSelected = false;
     }
 
     public void DeleteSelected()
     {
         var selectedTransitions = Transitions.Where(transition => transition.IsSelected).ToList();
+        var selectedInitialTransitions = InitialTransitions.Where(t => t.IsSelected).ToList();
         var selectedStates = States.Where(state => state.IsSelected).ToList();
-        if (selectedTransitions.Count == 0 && selectedStates.Count == 0)
+        if (selectedTransitions.Count == 0 && selectedInitialTransitions.Count == 0 && selectedStates.Count == 0)
             return;
 
         PushUndoSnapshot(CreateUndoSnapshot());
@@ -728,6 +774,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         if (!States.Any(state => state.IsInitialState) && States.Count > 0)
             States[0].IsInitialState = true;
 
+        SyncInitialTransitions();
         RebalanceAutoTransitions();
         ClearSelection();
     }
@@ -765,6 +812,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         if (removedInitialState && States.Count > 0)
             States[0].IsInitialState = true;
 
+        SyncInitialTransitions();
         RebalanceAutoTransitions();
         ClearSelection();
     }
@@ -780,7 +828,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             .ToDictionary(item => item.state, item => item.index);
 
         var stateSnapshots = States
-            .Select(state => new StateSnapshot(state.Id, state.X, state.Y, state.Width, state.Height, state.IsInitialState, state.OutputAssignments))
+            .Select(state => new StateSnapshot(state.Id, state.X, state.Y, state.Width, state.Height, state.IsInitialState, state.IsFinalState, state.OutputAssignments))
             .ToList();
 
         var transitionSnapshots = Transitions
@@ -803,7 +851,18 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
                 transition.ControlPoints.Select(point => new PointSnapshot(point.X, point.Y)).ToList()))
             .ToList();
 
-        return new UndoSnapshot(GraphType, signalSnapshots, stateSnapshots, transitionSnapshots);
+        var initialTransitionSnapshots = InitialTransitions
+            .Where(t => t.TargetState is not null)
+            .Select(t => new InitialTransitionSnapshot(
+                stateIndexByReference.TryGetValue(t.TargetState!, out var ti) ? ti : 0,
+                t.Condition,
+                new PointSnapshot(t.StartPoint.X, t.StartPoint.Y),
+                new PointSnapshot(t.EndPoint.X, t.EndPoint.Y),
+                new PointSnapshot(t.ConditionPosition.X, t.ConditionPosition.Y),
+                t.ControlPoints.Select(p => new PointSnapshot(p.X, p.Y)).ToList()))
+            .ToList();
+
+        return new UndoSnapshot(GraphType, signalSnapshots, stateSnapshots, transitionSnapshots, initialTransitionSnapshots);
     }
 
     public void PushUndoSnapshot(UndoSnapshot snapshot)
@@ -855,6 +914,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             Signals.Clear();
             States.Clear();
             Transitions.Clear();
+            InitialTransitions.Clear();
 
             foreach (var signal in snapshot.Signals)
             {
@@ -878,7 +938,8 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
                     Width = state.Width,
                     Height = state.Height,
                     OutputAssignments = state.OutputAssignments,
-                    IsInitialState = state.IsInitialState
+                    IsInitialState = state.IsInitialState,
+                    IsFinalState = state.IsFinalState
                 })
                 .ToList();
 
@@ -917,6 +978,30 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
                 restoredTransition.RefreshGeometry();
                 Transitions.Add(restoredTransition);
+            }
+
+            foreach (var initSnap in snapshot.InitialTransitions)
+            {
+                if (initSnap.TargetIndex < 0 || initSnap.TargetIndex >= restoredStates.Count)
+                    continue;
+
+                var restoredInit = new TransitionViewModel
+                {
+                    IsInitialTransition = true,
+                    TargetState = restoredStates[initSnap.TargetIndex],
+                    Condition = initSnap.Condition,
+                    IsAutoRouted = false
+                };
+                restoredInit.StartPoint.X = initSnap.StartPoint.X;
+                restoredInit.StartPoint.Y = initSnap.StartPoint.Y;
+                restoredInit.EndPoint.X = initSnap.EndPoint.X;
+                restoredInit.EndPoint.Y = initSnap.EndPoint.Y;
+                restoredInit.ConditionPosition.X = initSnap.ConditionPosition.X;
+                restoredInit.ConditionPosition.Y = initSnap.ConditionPosition.Y;
+                foreach (var p in initSnap.ControlPoints)
+                    restoredInit.ControlPoints.Add(new TransitionPointViewModel(p.X, p.Y));
+                restoredInit.RefreshGeometry();
+                InitialTransitions.Add(restoredInit);
             }
 
             ClearSelection();
@@ -967,7 +1052,79 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         foreach (var state in States)
             state.IsInitialState = state == newState;
 
+        SyncInitialTransitions();
+
         if (_originalDocument is not null)
             FsmXmlStateHelper.SetInitialState(_originalDocument, _ns, newState);
+    }
+
+    public void SetAsFinalState(StateItemViewModel state)
+    {
+        if (state.IsFinalState)
+            return;
+
+        PushUndoSnapshot(CreateUndoSnapshot());
+        state.IsFinalState = true;
+
+        if (_originalDocument is not null)
+            FsmXmlStateHelper.SyncFinalStatesMetadata(_originalDocument, _ns, States);
+    }
+
+    public void RemoveFinalState(StateItemViewModel state)
+    {
+        if (!state.IsFinalState)
+            return;
+
+        PushUndoSnapshot(CreateUndoSnapshot());
+        state.IsFinalState = false;
+
+        if (_originalDocument is not null)
+            FsmXmlStateHelper.SyncFinalStatesMetadata(_originalDocument, _ns, States);
+    }
+
+    private void SyncInitialTransitions()
+    {
+        var oldTransition = InitialTransitions.FirstOrDefault();
+        var initialState = States.FirstOrDefault(s => s.IsInitialState);
+
+        if (initialState is null)
+        {
+            InitialTransitions.Clear();
+            return;
+        }
+
+        if (oldTransition is not null && ReferenceEquals(oldTransition.TargetState, initialState))
+        {
+            // Already pointing at the right state; just refresh
+            oldTransition.RefreshGeometry();
+            return;
+        }
+
+        InitialTransitions.Clear();
+        InitialTransitions.Add(CreateInitialTransition(initialState));
+    }
+
+    private TransitionViewModel CreateInitialTransition(StateItemViewModel targetState, double? startX = null, double? startY = null, string condition = "")
+    {
+        var sx = startX ?? targetState.X - 80;
+        var sy = startY ?? targetState.Y + targetState.RenderHeight / 2.0;
+        var startPt = new Avalonia.Point(sx, sy);
+        var endPt = targetState.GetConnectorPointTowards(startPt);
+
+        var t = new TransitionViewModel
+        {
+            IsInitialTransition = true,
+            TargetState = targetState,
+            Condition = condition,
+            IsAutoRouted = false
+        };
+        t.StartPoint.X = sx;
+        t.StartPoint.Y = sy;
+        t.EndPoint.X = endPt.X;
+        t.EndPoint.Y = endPt.Y;
+        t.ConditionPosition.X = (sx + endPt.X) / 2.0;
+        t.ConditionPosition.Y = sy - 16;
+        t.RefreshGeometry();
+        return t;
     }
 }

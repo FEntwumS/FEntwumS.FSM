@@ -1,10 +1,12 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Notifications;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using OneWare.Essentials.Enums;
 using OneWare.MyExtension.ViewModels;
 using Avalonia.Input;
 using System;
@@ -957,6 +959,24 @@ public partial class FiniteStateMachineView : UserControl
         }
     }
 
+    private void OnSetFinalStateClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { DataContext: StateItemViewModel selectedState }
+            && DataContext is FiniteStateMachineViewModel mainVm)
+        {
+            mainVm.SetAsFinalState(selectedState);
+        }
+    }
+
+    private void OnRemoveFinalStateClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { DataContext: StateItemViewModel selectedState }
+            && DataContext is FiniteStateMachineViewModel mainVm)
+        {
+            mainVm.RemoveFinalState(selectedState);
+        }
+    }
+
     private void OnDeleteStateClicked(object? sender, RoutedEventArgs e)
     {
         if (sender is MenuItem { DataContext: StateItemViewModel selectedState }
@@ -1158,5 +1178,149 @@ public partial class FiniteStateMachineView : UserControl
             return default;
 
         return new Point(EditorSurface.Bounds.Width / 2, EditorSurface.Bounds.Height / 2);
+    }
+
+    // ──────────────────────────────────────────────
+    // Backend: Generate VHDL / C  and  Verify
+    // ──────────────────────────────────────────────
+
+    private async void OnGenerateVhdlClicked(object? sender, RoutedEventArgs e)
+    {
+        await RunBackendCommandAsync("-V", askForOutputDir: true, operationName: "VHDL Generation");
+    }
+
+    private async void OnGenerateCClicked(object? sender, RoutedEventArgs e)
+    {
+        await RunBackendCommandAsync("-C", askForOutputDir: true, operationName: "C Code Generation");
+    }
+
+    private async void OnVerifyClicked(object? sender, RoutedEventArgs e)
+    {
+        await RunBackendCommandAsync("-v", askForOutputDir: false, operationName: "Verification");
+    }
+
+    private async Task RunBackendCommandAsync(string targetFlag, bool askForOutputDir, string operationName)
+    {
+        if (DataContext is not FiniteStateMachineViewModel vm)
+            return;
+
+        try
+        {
+            // Resolve the host window once — passed to every ShowMessageAsync call
+            var owner = TopLevel.GetTopLevel(this) as Window;
+
+            // ── Step 1: Ensure the XML is saved on disk ──────────────────────
+            string? inputPath = vm.FilePath;
+
+            if (string.IsNullOrWhiteSpace(inputPath) || !System.IO.File.Exists(inputPath))
+            {
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel == null) return;
+
+                var saveFile = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = $"Save FSM before {operationName.ToLowerInvariant()}",
+                    FileTypeChoices = new[]
+                    {
+                        new FilePickerFileType("SCXML Files") { Patterns = new[] { "*.xml" } }
+                    },
+                    DefaultExtension = "xml",
+                    SuggestedFileName = "NewFSM.xml"
+                });
+
+                if (saveFile == null) return;
+
+                inputPath = saveFile.Path.LocalPath;
+                await vm.SaveToFile(inputPath);
+            }
+
+            // ── Step 2: Ask for output directory (generate operations only) ──
+            string? outputDir = null;
+
+            if (askForOutputDir)
+            {
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel == null) return;
+
+                var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = $"Select Output Directory for {operationName}"
+                });
+
+                if (folders.Count == 0) return;
+                outputDir = folders[0].Path.LocalPath;
+            }
+
+            // ── Step 3: Locate the backend JAR ───────────────────────────────
+            var assemblyDir = System.IO.Path.GetDirectoryName(
+                                  typeof(FiniteStateMachineView).Assembly.Location)
+                              ?? AppContext.BaseDirectory;
+
+            var jarPath = System.IO.Path.Combine(assemblyDir, "backend", "fentwums-fsm-0.1.1.jar");
+
+            if (!System.IO.File.Exists(jarPath))
+            {
+                await vm.ShowMessageAsync("Backend Not Found",
+                    $"Could not locate the backend JAR at:\n{jarPath}",
+                    MessageBoxIcon.Error, owner);
+                return;
+            }
+
+            // ── Step 4: Build the argument string ────────────────────────────
+            // java -jar "<jar>" -c <flag> -i="<inputPath>" [-o="<outputDir>"]
+            var args = new System.Text.StringBuilder();
+            args.Append($"-jar \"{jarPath}\" -c {targetFlag}");
+            args.Append($" -i=\"{inputPath}\"");
+            if (outputDir != null)
+                args.Append($" -o=\"{outputDir}\"");
+
+            // ── Step 5: Run the process ───────────────────────────────────────
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "java",
+                Arguments = args.ToString(),
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            using var process = System.Diagnostics.Process.Start(psi);
+            if (process == null)
+            {
+                await vm.ShowMessageAsync("Error",
+                    "Failed to start the Java backend process. Make sure Java is installed and on PATH.",
+                    MessageBoxIcon.Error, owner);
+                return;
+            }
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+
+            // ── Step 6: Report result ─────────────────────────────────────────
+            if (process.ExitCode == 0)
+            {
+                var resultMsg = string.IsNullOrWhiteSpace(stdout)
+                    ? $"{operationName} completed successfully."
+                    : stdout.Trim();
+                await vm.ShowMessageAsync(operationName, resultMsg, MessageBoxIcon.Info, owner);
+            }
+            else
+            {
+                var error = string.IsNullOrWhiteSpace(stderr) ? stdout : stderr;
+                await vm.ShowMessageAsync($"{operationName} Failed",
+                    $"Exit code {process.ExitCode}:\n{error?.Trim()}",
+                    MessageBoxIcon.Error, owner);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Use ShowNotification (sync, no window needed) to avoid re-entering async dialogs
+            if (DataContext is FiniteStateMachineViewModel vm2)
+                vm2.ShowNotification($"{operationName} Error", ex.Message, NotificationType.Error);
+        }
     }
 }
