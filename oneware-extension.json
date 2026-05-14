@@ -5,15 +5,15 @@
   "id": "OneWare.MyExtension",
   "description": "FSM Editor for OneWare",
   "license": "MIT",
-  "iconUrl": "https://raw.githubusercontent.com/GithubUser/OneWare.MyExtension/main/Icon.png",
+  "iconUrl": "",
   "tabs": [
     {
       "title": "Readme",
-      "contentUrl": "https://raw.githubusercontent.com/GithubUser/OneWare.MyExtension/main/Extension.md"
+      "contentUrl": ""
     },
     {
       "title": "License",
-      "contentUrl": "https://raw.githubusercontent.com/GithubUser/OneWare.MyExtension/main/License.md"
+      "contentUrl": "https://raw.githubusercontent.com/androccino/fsmfrontend/refs/heads/main/License.md"
     }
   ],
   "links": [
