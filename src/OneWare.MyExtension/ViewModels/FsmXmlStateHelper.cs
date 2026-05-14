@@ -446,12 +446,41 @@ public static class FsmXmlStateHelper
         return document.Root
             .Element(ns + "signals")?
             .Elements(ns + "signal")
-            .Select(signalElement => new SignalDefinitionViewModel
+            .Select(signalElement =>
             {
-                Name = signalElement.Attribute("name")?.Value?.Trim() ?? string.Empty,
-                Direction = signalElement.Attribute("dir")?.Value?.Trim() ?? string.Empty,
-                Type = signalElement.Attribute("type")?.Value?.Trim() ?? string.Empty,
-                Size = signalElement.Attribute("size")?.Value?.Trim() ?? string.Empty
+                var xmlType = signalElement.Attribute("type")?.Value?.Trim() ?? string.Empty;
+                var xmlSize = signalElement.Attribute("size")?.Value?.Trim() ?? string.Empty;
+
+                // Reverse-map backend XML types to the UI "bit_n" type with the correct size.
+                string uiType, uiSize;
+                if (string.Equals(xmlType, "nibble", StringComparison.OrdinalIgnoreCase))
+                {
+                    uiType = "bit_n";
+                    uiSize = "4";
+                }
+                else if (string.Equals(xmlType, "byte", StringComparison.OrdinalIgnoreCase))
+                {
+                    uiType = "bit_n";
+                    uiSize = "8";
+                }
+                else if (string.Equals(xmlType, "vector", StringComparison.OrdinalIgnoreCase))
+                {
+                    uiType = "bit_n";
+                    uiSize = xmlSize; // preserve whatever size was stored
+                }
+                else
+                {
+                    uiType = xmlType; // e.g. "bit"
+                    uiSize = xmlSize;
+                }
+
+                return new SignalDefinitionViewModel
+                {
+                    Name = signalElement.Attribute("name")?.Value?.Trim() ?? string.Empty,
+                    Direction = signalElement.Attribute("dir")?.Value?.Trim() ?? string.Empty,
+                    Type = uiType,
+                    Size = uiSize
+                };
             })
             .Where(signal => !string.IsNullOrWhiteSpace(signal.Name))
                 .ToList()
@@ -486,10 +515,34 @@ public static class FsmXmlStateHelper
                 signalElement.SetAttributeValue("dir", signal.Direction.Trim());
 
             if (!string.IsNullOrWhiteSpace(signal.Type))
-                signalElement.SetAttributeValue("type", signal.Type.Trim());
-
-            if (!string.IsNullOrWhiteSpace(signal.Size))
-                signalElement.SetAttributeValue("size", signal.Size.Trim());
+            {
+                if (string.Equals(signal.Type, "bit_n", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Map bit_n to the correct backend XML type based on size.
+                    // nibble = 4 bits, byte = 8 bits, vector = everything else (needs a size attribute).
+                    if (signal.Size == "4")
+                    {
+                        signalElement.SetAttributeValue("type", "nibble");
+                        // no size attribute for nibble
+                    }
+                    else if (signal.Size == "8")
+                    {
+                        signalElement.SetAttributeValue("type", "byte");
+                        // no size attribute for byte
+                    }
+                    else
+                    {
+                        signalElement.SetAttributeValue("type", "vector");
+                        if (!string.IsNullOrWhiteSpace(signal.Size))
+                            signalElement.SetAttributeValue("size", signal.Size.Trim());
+                    }
+                }
+                else
+                {
+                    signalElement.SetAttributeValue("type", signal.Type.Trim());
+                    // bit type has fixed size 1 — no size attribute needed
+                }
+            }
 
             signalsElement.Add(signalElement);
         }

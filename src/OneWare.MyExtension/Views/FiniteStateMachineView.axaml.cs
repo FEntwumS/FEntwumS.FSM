@@ -1231,8 +1231,10 @@ public partial class FiniteStateMachineView : UserControl
                 if (saveFile == null) return;
 
                 inputPath = saveFile.Path.LocalPath;
-                await vm.SaveToFile(inputPath);
             }
+
+            // Always flush the current in-editor state to disk before calling the backend.
+            await vm.SaveToFile(inputPath);
 
             // ── Step 2: Ask for output directory (generate operations only) ──
             string? outputDir = null;
@@ -1272,7 +1274,15 @@ public partial class FiniteStateMachineView : UserControl
             args.Append($"-jar \"{jarPath}\" -c {targetFlag}");
             args.Append($" -i=\"{inputPath}\"");
             if (outputDir != null)
-                args.Append($" -o=\"{outputDir}\"");
+            {
+                // Trim any trailing directory separator — a path ending with '\' would produce
+                // -o="C:\path\" where '\"' is parsed as an escaped quote by the Windows
+                // command-line tokeniser, mangling the argument and causing the backend to fail.
+                var sanitizedOutputDir = outputDir.TrimEnd(
+                    System.IO.Path.DirectorySeparatorChar,
+                    System.IO.Path.AltDirectorySeparatorChar);
+                args.Append($" -o=\"{sanitizedOutputDir}\"");
+            }
 
             // ── Step 5: Run the process ───────────────────────────────────────
             var psi = new System.Diagnostics.ProcessStartInfo
@@ -1301,18 +1311,23 @@ public partial class FiniteStateMachineView : UserControl
             var stderr = await stderrTask;
 
             // ── Step 6: Report result ─────────────────────────────────────────
+            // Combine both streams so nothing is silently dropped.
+            var combined = string.Join(Environment.NewLine,
+                new[] { stdout?.Trim(), stderr?.Trim() }
+                .Where(s => !string.IsNullOrWhiteSpace(s)));
+
             if (process.ExitCode == 0)
             {
-                var resultMsg = string.IsNullOrWhiteSpace(stdout)
+                var resultMsg = string.IsNullOrWhiteSpace(combined)
                     ? $"{operationName} completed successfully."
-                    : stdout.Trim();
+                    : combined;
                 await vm.ShowMessageAsync(operationName, resultMsg, MessageBoxIcon.Info, owner);
             }
             else
             {
-                var error = string.IsNullOrWhiteSpace(stderr) ? stdout : stderr;
+                var error = string.IsNullOrWhiteSpace(combined) ? $"(no output)" : combined;
                 await vm.ShowMessageAsync($"{operationName} Failed",
-                    $"Exit code {process.ExitCode}:\n{error?.Trim()}",
+                    $"Exit code {process.ExitCode}:\n{error}",
                     MessageBoxIcon.Error, owner);
             }
         }
