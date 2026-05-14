@@ -21,3 +21,7 @@
 3. Click on the red play button next to run plugin
 4. This should open OneWare Studio with the Plugin installed
 
+NOTE: In case of errors connected to the launch of OneWare Studio:
+- Perhaps the /.vscode/launch.json file needs to be modified:
+	- tag: "program", user might have a different path to the OneWareStudio.exe 
+
