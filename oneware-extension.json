@@ -1,9 +1,9 @@
 {
   "category": "Tools",
   "type": "Plugin",
-  "name": "OneWare.MyExtension Extension",
+  "name": "FSM Editor",
   "id": "OneWare.MyExtension",
-  "description": "OneWare.MyExtension for OneWare",
+  "description": "FSM Editor for OneWare",
   "license": "MIT",
   "iconUrl": "https://raw.githubusercontent.com/GithubUser/OneWare.MyExtension/main/Icon.png",
   "tabs": [
@@ -19,10 +19,10 @@
   "links": [
     {
       "name": "Github",
-      "url": "https://github.com/GithubUser/OneWare.MyExtension"
+      "url": "https://github.com/FEntwumS/FEntwumS.FSM"
     }
   ],
-  "sourceUrl": "https://github.com/GithubUser/OneWare.MyExtension/releases/download",
+  "sourceUrl": "https://github.com/FEntwumS/FEntwumS.FSM/releases/download",
   "versions": [
     {
       "version": "0.3",
