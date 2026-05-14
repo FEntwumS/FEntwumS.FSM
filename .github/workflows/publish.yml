@@ -9,8 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    permissions: write-all
     steps:
       - uses: actions/checkout@v3
         with:
@@ -33,9 +32,12 @@ jobs:
           filename: ../OneWare.MyExtension_${{steps.get-version.outputs.version}}_all.zip
           directory: ./publish
       - name: Debug
-        run: ls
+        run: ls && ls -lshaR publish
       - uses: ncipollo/release-action@v1.14.0
         with:
           artifacts: "OneWare.MyExtension_${{steps.get-version.outputs.version}}_all.zip,./publish/compatibility.txt"
           tag: ${{steps.get-version.outputs.version}}
           allowUpdates: true
+          replacesArtifacts: false
+          generateReleaseNotes: true
+          omitBodyDuringUpdate: true
