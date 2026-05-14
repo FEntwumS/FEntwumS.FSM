@@ -19,10 +19,10 @@
   "links": [
     {
       "name": "Github",
-      "url": "https://github.com/FEntwumS/FEntwumS.FSM"
+      "url": "https://github.com/androcchino/fsmfrontend"
     }
   ],
-  "sourceUrl": "https://github.com/FEntwumS/FEntwumS.FSM/releases/download",
+  "sourceUrl": "https://github.com/androcchino/fsmfrontend/releases/download",
   "versions": [
     {
       "version": "0.3",
