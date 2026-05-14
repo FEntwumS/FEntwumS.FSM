@@ -25,7 +25,8 @@
   "sourceUrl": "https://github.com/androcchino/fsmfrontend/releases/download",
   "versions": [
     {
-      "version": "0.3",
+      "version": "0.1",
+      "minStudioVersion": "1.0.10.0",
       "targets": [
         {
           "target": "all"
