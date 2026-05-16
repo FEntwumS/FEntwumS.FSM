@@ -5,7 +5,7 @@
   "id": "OneWare.MyExtension",
   "description": "FSM Editor for OneWare",
   "license": "MIT",
-  "iconUrl": "",
+  "iconUrl": "https://raw.githubusercontent.com/androccino/fsmfrontend/icon_fsm_editor.png",
   "tabs": [
     {
       "title": "Readme",
