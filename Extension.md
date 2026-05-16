@@ -1,4 +1,4 @@
-![Icon](https://raw.githubusercontent.com/androccino/fsmfrontend/icon_fsm_editor.png)
+![Icon](https://raw.githubusercontent.com/androccino/fsmfrontend/Icon.png)
 
 ### Get Started
 
