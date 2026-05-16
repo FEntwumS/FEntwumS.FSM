@@ -330,7 +330,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         var isFirst = States.Count == 0;
         States.Add(new StateItemViewModel
         {
-            X = 50,
+            X = 200,
             Y = 50,
             Id = $"STATE_{States.Count + 1}",
             Width = 144,
@@ -1106,7 +1106,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
     private TransitionViewModel CreateInitialTransition(StateItemViewModel targetState, double? startX = null, double? startY = null, string condition = "")
     {
-        var sx = startX ?? targetState.X - 80;
+        var sx = startX ?? Math.Max(20, targetState.X - 80);
         var sy = startY ?? targetState.Y + targetState.RenderHeight / 2.0;
         var startPt = new Avalonia.Point(sx, sy);
         var endPt = targetState.GetConnectorPointTowards(startPt);
