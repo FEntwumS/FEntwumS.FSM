@@ -38,6 +38,6 @@ jobs:
           artifacts: "OneWare.MyExtension_${{steps.get-version.outputs.version}}_all.zip,./publish/compatibility.txt"
           tag: ${{steps.get-version.outputs.version}}
           allowUpdates: true
-          replacesArtifacts: false
+          replacesArtifacts: true
           generateReleaseNotes: true
           omitBodyDuringUpdate: true
