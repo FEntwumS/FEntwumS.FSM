@@ -1,4 +1,4 @@
-![Icon](https://raw.githubusercontent.com/GithubUser/OneWare.MyExtension/main/Icon.png)
+![Icon](https://raw.githubusercontent.com/androccino/fsmfrontend/icon_fsm_editor.png)
 
 ### Get Started
 
