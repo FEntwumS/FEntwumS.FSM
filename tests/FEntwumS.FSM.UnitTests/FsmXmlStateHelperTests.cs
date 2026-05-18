@@ -1,10 +1,10 @@
 using System;
 using System.Linq;
 using System.Xml.Linq;
-using OneWare.MyExtension.ViewModels;
+using FEntwumS.FSM.ViewModels;
 using Xunit;
 
-namespace OneWare.MyExtension.UnitTests;
+namespace FEntwumS.FSM.UnitTests;
 
 public class FsmXmlStateHelperTests
 {

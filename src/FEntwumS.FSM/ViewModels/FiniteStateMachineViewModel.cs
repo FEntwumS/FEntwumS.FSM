@@ -15,7 +15,7 @@ using OneWare.Essentials.Services;
 using OneWare.Essentials.Models;
 using OneWare.Essentials.Enums;
 
-namespace OneWare.MyExtension.ViewModels;
+namespace FEntwumS.FSM.ViewModels;
 
 public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 {

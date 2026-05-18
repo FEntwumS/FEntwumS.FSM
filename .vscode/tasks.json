@@ -7,7 +7,7 @@
       "type": "process",
       "args": [
         "build",
-        "OneWare.MyExtension.sln",
+        "FEntwumS.FSM.slnx",
         "--configuration",
         "Debug"
       ],

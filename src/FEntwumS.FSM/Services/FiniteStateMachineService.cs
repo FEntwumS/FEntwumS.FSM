@@ -1,8 +1,8 @@
 using OneWare.Essentials.Models;
 using OneWare.Essentials.Services;
 using OneWare.Essentials.Enums;
-using OneWare.MyExtension.ViewModels;
-namespace OneWare.MyExtension.Services;
+using FEntwumS.FSM.ViewModels;
+namespace FEntwumS.FSM.Services;
 
 public interface IFiniteStateMachineService
 {

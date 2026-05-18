@@ -1,8 +1,8 @@
-﻿using Xunit;
+using Xunit;
 
-namespace OneWare.MyExtension.UnitTests;
+namespace FEntwumS.FSM.UnitTests;
 
-public class OneWareMyExtensionTests
+public class FEntwumSFSMTests
 {
     //Add your unit tests here
     

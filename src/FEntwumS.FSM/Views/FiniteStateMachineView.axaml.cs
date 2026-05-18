@@ -7,10 +7,10 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using OneWare.Essentials.Enums;
-using OneWare.MyExtension.ViewModels;
+using FEntwumS.FSM.ViewModels;
 using Avalonia.Input;
 using System;
-namespace OneWare.MyExtension.Views;
+namespace FEntwumS.FSM.Views;
 
 public partial class FiniteStateMachineView : UserControl
 {

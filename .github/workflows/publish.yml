@@ -22,22 +22,23 @@ jobs:
         uses: kzrnm/get-net-sdk-project-versions-action@v1.3.0
         id: get-version
         with:
-          proj-path: src/OneWare.MyExtension/OneWare.MyExtension.csproj
+          proj-path: src/FEntwumS.FSM/FEntwumS.FSM.csproj
       - name: Build
-        run: dotnet build src/OneWare.MyExtension/OneWare.MyExtension.csproj -c Release -o publish
+        run: dotnet build src/FEntwumS.FSM/FEntwumS.FSM.csproj -c Release -o publish
+
       - name: Compress
         uses: thedoctor0/zip-release@0.7.1
         with:
           type: 'zip'
-          filename: ../OneWare.MyExtension_${{steps.get-version.outputs.version}}_all.zip
+          filename: ../FEntwumS.FSM_${{steps.get-version.outputs.version}}_all.zip
           directory: ./publish
       - name: Debug
         run: ls && ls -lshaR publish
       - uses: ncipollo/release-action@v1.14.0
         with:
-          artifacts: "OneWare.MyExtension_${{steps.get-version.outputs.version}}_all.zip,./publish/compatibility.txt"
+          artifacts: "FEntwumS.FSM_${{steps.get-version.outputs.version}}_all.zip,./publish/compatibility.txt"
           tag: ${{steps.get-version.outputs.version}}
           allowUpdates: true
-          replacesArtifacts: true
+          replacesArtifacts: false
           generateReleaseNotes: true
           omitBodyDuringUpdate: true

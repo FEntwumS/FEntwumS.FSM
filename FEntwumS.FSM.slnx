@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Actions/">
+    <File Path=".github/workflows/publish.yml" />
+    <File Path=".github/workflows/test.yml" />
+  </Folder>
+  <Folder Name="/Properties/">
+    <File Path="Extension.md" />
+    <File Path="License.md" />
+    <File Path="oneware-extension.json" />
+  </Folder>
+  <Project Path="src/FEntwumS.FSM/FEntwumS.FSM.csproj" />
+  <Project Path="tests/FEntwumS.FSM.UnitTests/FEntwumS.FSM.UnitTests.csproj" />
+</Solution>

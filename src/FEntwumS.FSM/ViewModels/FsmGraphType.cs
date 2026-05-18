@@ -1,4 +1,4 @@
-namespace OneWare.MyExtension.ViewModels;
+namespace FEntwumS.FSM.ViewModels;
 
 public enum FsmGraphType
 {

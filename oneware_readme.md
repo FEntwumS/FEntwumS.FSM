@@ -131,8 +131,8 @@ Right-click any `.xml` or `.scxml` file in the Project Explorer and select **Vie
 ## Project Structure
 
 ```
-src/OneWare.MyExtension/
-├── OneWareMyExtensionModule.cs       # Extension entry point & service registration
+src/FEntwumS.FSM/
+├── FEntwumSFSMModule.cs       # Extension entry point & service registration
 ├── Services/
 │   └── FiniteStateMachineService.cs  # Opens/creates FSM editor documents
 ├── ViewModels/

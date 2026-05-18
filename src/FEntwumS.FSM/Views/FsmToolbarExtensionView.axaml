@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:OneWare.MyExtension.ViewModels"
-             x:Class="OneWare.MyExtension.Views.FsmToolbarExtensionView"
+             xmlns:vm="using:FEntwumS.FSM.ViewModels"
+             x:Class="FEntwumS.FSM.Views.FsmToolbarExtensionView"
              x:DataType="vm:FsmToolbarExtensionViewModel">
     <Button Content="FSM Editor"
             Margin="8,0,0,0"

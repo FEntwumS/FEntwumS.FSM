@@ -5,7 +5,7 @@ using System.Globalization;
 using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace OneWare.MyExtension.ViewModels;
+namespace FEntwumS.FSM.ViewModels;
 
 public enum ConnectorSide
 {

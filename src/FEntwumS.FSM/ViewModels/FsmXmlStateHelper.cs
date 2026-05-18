@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
-namespace OneWare.MyExtension.ViewModels;
+namespace FEntwumS.FSM.ViewModels;
 
 public static class FsmXmlStateHelper
 {

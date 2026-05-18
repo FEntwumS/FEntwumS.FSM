@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace OneWare.MyExtension.ViewModels;
+namespace FEntwumS.FSM.ViewModels;
 
 public partial class SignalDefinitionViewModel : ObservableObject
 {

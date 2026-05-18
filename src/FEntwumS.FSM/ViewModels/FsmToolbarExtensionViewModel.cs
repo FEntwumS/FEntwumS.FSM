@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.Input;
-using OneWare.MyExtension.Services;
+using FEntwumS.FSM.Services;
 
-namespace OneWare.MyExtension.ViewModels;
+namespace FEntwumS.FSM.ViewModels;
 
 public class FsmToolbarExtensionViewModel
 {

@@ -3,14 +3,14 @@ using Microsoft.Extensions.DependencyInjection;
 using OneWare.Essentials.Enums;
 using OneWare.Essentials.Models;
 using OneWare.Essentials.Services;
-using OneWare.MyExtension.Services;
-using OneWare.MyExtension.ViewModels;
+using FEntwumS.FSM.Services;
+using FEntwumS.FSM.ViewModels;
 
-namespace OneWare.MyExtension;
+namespace FEntwumS.FSM;
 
-public class OneWareMyExtensionModule : IOneWareModule
+public class FEntwumSFSMModule : IOneWareModule
 {
-    public string Id => "OneWare.MyExtension";
+    public string Id => "FEntwumS.FSM";
 
     public IReadOnlyCollection<string> Dependencies => Array.Empty<string>();
 
@@ -54,7 +54,7 @@ public class OneWareMyExtensionModule : IOneWareModule
                 && !string.Equals(extension, ".scxml", StringComparison.OrdinalIgnoreCase))
                 return;
 
-            menuItems.Add(new MenuItemModel("OneWare.MyExtension.OpenFiniteStateMachine")
+            menuItems.Add(new MenuItemModel("FEntwumS.FSM.OpenFiniteStateMachine")
             {
                 Header = "View FSM-Graph",
                 IsEnabled = true,

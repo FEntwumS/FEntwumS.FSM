@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace OneWare.MyExtension.Views;
+namespace FEntwumS.FSM.Views;
 
 public partial class FsmToolbarExtensionView : UserControl
 {

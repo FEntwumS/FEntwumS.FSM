@@ -7,7 +7,7 @@
       "request": "launch",
       "program": "C:\\Program Files\\OneWare Studio\\OneWareStudio.exe",
       "args": ["--modules", "./"],
-      "cwd": "${workspaceFolder}\\src\\OneWare.MyExtension\\bin\\Debug\\net10.0",
+      "cwd": "${workspaceFolder}\\src\\FEntwumS.FSM\\bin\\Debug\\net10.0",
       "stopAtEntry": false,
       "env": {},
       "console": "internalConsole"
