@@ -74,7 +74,7 @@ Full undo/redo history for all editing operations.
 3. Search for **FSM Editor** and click **Install**
 
 ### Manual Installation
-Download the latest release from [GitHub Releases](https://github.com/androccino/fsmfrontend/releases) and install it through the OneWare package manager's manual install option.
+Download the latest release from [GitHub Releases](https://github.com/FEntwumS/FEntwumS.FSM/releases) and install it through the OneWare package manager's manual install option.
 
 ---
 
@@ -117,7 +117,7 @@ Right-click any `.xml` or `.scxml` file in the Project Explorer and select **Vie
 2. Restart VS Code after the SDK installation
 3. Clone the repository:
    ```sh
-   git clone https://github.com/androccino/fsmfrontend.git
+   git clone https://github.com/FEntwumS/FEntwumS.FSM.git
    ```
 4. Open the cloned folder in VS Code
 5. Run the **Build Solution** task (`Ctrl+Shift+B`)

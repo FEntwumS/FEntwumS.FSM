@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/androccino/fsmfrontend/refs/heads/main/icon2_fsm_editor.png" alt="FSM Editor Logo" width="100"/>
+  <img src="https://raw.githubusercontent.com/FEntwumS/FEntwumS.FSM/refs/heads/main/icon2_fsm_editor.png" alt="FSM Editor Logo" width="100"/>
 
   # FSM Editor
 
@@ -7,7 +7,7 @@
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](License.md)
   [![OneWare Studio](https://img.shields.io/badge/OneWare%20Studio-%3E%3D1.0.10-green)](https://one-ware.com)
-  [![Version](https://img.shields.io/badge/version-0.1-orange)](https://github.com/androccino/fsmfrontend/releases)
+  [![Version](https://img.shields.io/badge/version-0.1-orange)](https://github.com/FEntwumS/FEntwumS.FSM/releases)
 </div>
 
 ---
@@ -88,7 +88,7 @@ Full undo/redo history for all editing operations.
 3. Search for **FSM Editor** and click **Install**
 
 ### Manual Installation
-Download the latest release from [GitHub Releases](https://github.com/androccino/fsmfrontend/releases) and install it through the OneWare package manager's manual install option.
+Download the latest release from [GitHub Releases](https://github.com/FEntwumS/FEntwumS.FSM/releases) and install it through the OneWare package manager's manual install option.
 
 ---
 
@@ -131,7 +131,7 @@ Right-click any `.xml` or `.scxml` file in the Project Explorer and select **Vie
 2. Restart VS Code after the SDK installation
 3. Clone the repository:
    ```sh
-   git clone https://github.com/androccino/fsmfrontend.git
+   git clone https://github.com/FEntwumS/FEntwumS.FSM.git
    ```
 4. Open the cloned folder in VS Code
 5. Run the **Build Solution** task (`Ctrl+Shift+B`)
