@@ -1,4 +1,4 @@
-![Icon](https://raw.githubusercontent.com/androccino/fsmfrontend/refs/heads/main/icon2_fsm_editor.png)
+![Icon](https://raw.githubusercontent.com/FEntwumS/FEntwumS.FSM/refs/heads/main/icon2_fsm_editor.png)
 
 ### Get Started
 
