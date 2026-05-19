@@ -1,0 +1,43 @@
+<controls:FlexibleWindow xmlns="https://github.com/avaloniaui"
+                         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                         xmlns:controls="using:OneWare.Essentials.Controls"
+                         x:Class="FEntwumS.FSM.Views.FsmLoadDialog"
+                         Title="Load FSM Graph"
+                         PrefWidth="420"
+                         PrefHeight="320"
+                         SizeToContent="Manual"
+                         WindowStartupLocation="CenterOwner">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="16">
+
+        <TextBlock Grid.Row="0"
+                   Text="Select a diagram to open:"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,10"/>
+
+        <Border Grid.Row="1"
+                BorderThickness="1"
+                CornerRadius="4">
+            <ListBox x:Name="FileList"
+                     SelectionMode="Single"
+                     DoubleTapped="OnDoubleTapped"/>
+        </Border>
+
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8"
+                    Margin="0,12,0,0">
+            <Button Content="Cancel"
+                    Width="80"
+                    Click="OnCancelClicked"/>
+            <Button x:Name="OpenButton"
+                    Content="Open"
+                    Width="80"
+                    IsEnabled="False"
+                    Click="OnOpenClicked"/>
+        </StackPanel>
+
+    </Grid>
+
+</controls:FlexibleWindow>

@@ -135,6 +135,8 @@ public partial class TransitionViewModel : ObservableObject
 
     public double OutputLabelHeight => Math.Max(LabelHeightValue, GetOutputLineCount() * 14 + 8);
 
+    public double OutputLabelLeft => ConditionPosition.X - (OutputLabelWidth / 2.0);
+
     public double OutputLabelTop => LabelTop + LabelHeight + 6;
 
     public double OutputEditorWidth => Math.Max(120, OutputLabelWidth + 24);
@@ -174,6 +176,7 @@ public partial class TransitionViewModel : ObservableObject
         OnPropertyChanged(nameof(DisplayOutputAssignments));
         OnPropertyChanged(nameof(OutputLabelWidth));
         OnPropertyChanged(nameof(OutputLabelHeight));
+        OnPropertyChanged(nameof(OutputLabelLeft));
         OnPropertyChanged(nameof(OutputLabelTop));
         OnPropertyChanged(nameof(OutputEditorWidth));
         OnPropertyChanged(nameof(OutputEditorHeight));
@@ -649,6 +652,8 @@ public partial class TransitionViewModel : ObservableObject
         OnPropertyChanged(nameof(LabelLeft));
         OnPropertyChanged(nameof(LabelTop));
         OnPropertyChanged(nameof(HasCondition));
+        OnPropertyChanged(nameof(OutputLabelLeft));
+        OnPropertyChanged(nameof(OutputLabelTop));
         OnPropertyChanged(nameof(StartHandleLeft));
         OnPropertyChanged(nameof(StartHandleTop));
         OnPropertyChanged(nameof(EndHandleLeft));

@@ -17,6 +17,6 @@ public class FsmToolbarExtensionViewModel
 
     private Task OpenEditorAsync()
     {
-        return _finiteStateMachineService.CreateNewFiniteStateMachineAsync();
+        return _finiteStateMachineService.OpenFromToolbarAsync();
     }
 }

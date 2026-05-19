@@ -29,6 +29,10 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     private readonly IProjectExplorerService _projectExplorerService;
     private readonly IMainDockService _mainDockService;
 
+    // Synthetic OpenFiles key used so "File > Save All" finds this FSM editor while
+    // the regular path key stays free for the text editor to open the same file.
+    private string? _fsmOpenFilesKey;
+
     private string _filePath = string.Empty;
     public string FilePath
     {
@@ -53,6 +57,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     private readonly Stack<UndoSnapshot> _undoStack = new();
     private readonly Stack<UndoSnapshot> _redoStack = new();
     private bool _isRestoringSnapshot;
+    private string _baseTitle = string.Empty;
 
     public sealed record PointSnapshot(double X, double Y);
     public sealed record SignalSnapshot(string Name, string Direction, string Type, string Size);
@@ -110,9 +115,10 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         FilePath = filePath;
         FullPath = filePath ?? string.Empty;
 
-        Title = string.IsNullOrWhiteSpace(filePath)
+        _baseTitle = string.IsNullOrWhiteSpace(filePath)
             ? "New FSM-Graph"
             : $"FSM-Graph - {System.IO.Path.GetFileNameWithoutExtension(filePath)}";
+        Title = _baseTitle;
         //Title = string.IsNullOrEmpty(filePath) ? "New FSM Graph" : $"FSM Graph - {System.IO.Path.GetFileName(filePath)}";
         Id = $"FSM Graph - {System.IO.Path.GetFileName(filePath)}";
         DraftTransitions.Add(DraftTransition);
@@ -124,6 +130,13 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         }
     }
 
+    public override async Task<bool> SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(FilePath))
+            return false;
+        await SaveToFile(FilePath);
+        return true;
+    }
 
     [RelayCommand]
     public async Task SaveToFile(string? path)
@@ -169,7 +182,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             FullPath = targetPath;
             _originalDocument = docToSave;
             _ns = docToSave.Root?.GetDefaultNamespace() ?? ns;
-            //Title = $"{System.IO.Path.GetFileName(targetPath)}";
+            MarkClean();
         }
         catch (System.Exception ex)
         {
@@ -318,6 +331,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         finally
         {
             IsLoading = false;
+            MarkClean();
 
             // Set the FSM graph icon scoped to this tab only.
             // ExtendedDocument.Icon has a private setter, so reflection is required.
@@ -357,11 +371,32 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             return;
 
         base.InitializeContent();
-        // Remove from OpenFiles so regular file-open actions (double-click, context menu "Open")
-        // are not redirected to this FSM editor. The FSM editor is opened explicitly via
-        // the "View FSM-Graph" context menu and should not claim the file path as occupied.
-        if (!string.IsNullOrWhiteSpace(FullPath))
-            _mainDockService.OpenFiles.Remove(FullPath.ToPathKey());
+
+        if (string.IsNullOrWhiteSpace(FullPath)) return;
+
+        var normalKey = FullPath.ToPathKey();
+        // Remove from the normal path key so that double-clicking the file in the project
+        // explorer still opens it in the text editor rather than switching to this FSM tab.
+        _mainDockService.OpenFiles.Remove(normalKey);
+        // Remove any previous synthetic key (handles re-initialization or path changes).
+        if (_fsmOpenFilesKey != null)
+            _mainDockService.OpenFiles.Remove(_fsmOpenFilesKey);
+        // Register under a synthetic key so "File > Save All" (which iterates
+        // OpenFiles.Values) still calls SaveAsync on this FSM editor.
+        _fsmOpenFilesKey = "\0fsm\0" + normalKey;
+        _mainDockService.OpenFiles.TryAdd(_fsmOpenFilesKey, this);
+    }
+
+    public override async Task<bool> TryCloseAsync()
+    {
+        var result = await base.TryCloseAsync();
+        // When the user proceeds to close (save or discard), remove the synthetic key.
+        if (result && _fsmOpenFilesKey != null)
+        {
+            _mainDockService?.OpenFiles.Remove(_fsmOpenFilesKey);
+            _fsmOpenFilesKey = null;
+        }
+        return result;
     }
 
     protected override void UpdateCurrentFile(string? oldPath)
@@ -371,7 +406,8 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             States.Clear();
             Signals.Clear();
             Transitions.Clear();
-            Title = "New FSM-Graph";
+            _baseTitle = "New FSM-Graph";
+            Title = _baseTitle;
             var setter = typeof(ExtendedDocument)
                 .GetProperty(nameof(Icon))
                 ?.GetSetMethod(nonPublic: true);
@@ -381,7 +417,8 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
         FilePath = FullPath;
         LoadFromFile(FullPath);
-        Title = $"FSM-Graph - {System.IO.Path.GetFileNameWithoutExtension(FullPath)}";
+        _baseTitle = $"FSM-Graph - {System.IO.Path.GetFileNameWithoutExtension(FullPath)}";
+        Title = _baseTitle;
     }
 
     [RelayCommand]
@@ -940,6 +977,23 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
         if (clearRedoHistory)
             _redoStack.Clear();
+
+        MarkDirty();
+    }
+
+    private void MarkDirty()
+    {
+        if (!IsDirty)
+        {
+            IsDirty = true;
+            Title = "*" + _baseTitle;
+        }
+    }
+
+    private void MarkClean()
+    {
+        IsDirty = false;
+        Title = _baseTitle;
     }
 
     public void UndoLastChange()
@@ -1081,14 +1135,22 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         {
             if (IsDirty)
             {
-                // The FSM editor is not registered in OpenFiles, so CloseFileAsync won't find it.
-                // Call TryCloseAsync directly to show the save dialog, then close the dockable.
+                // The FSM editor is not registered in OpenFiles under the normal key, so
+                // CloseFileAsync won't find it. Call TryCloseAsync directly to show the
+                // save dialog (TryCloseAsync override also cleans up _fsmOpenFilesKey).
                 _ = TryCloseAsync().ContinueWith(t =>
                 {
                     if (t.Result)
                         Avalonia.Threading.Dispatcher.UIThread.Post(() => _mainDockService.CloseDockable(this));
                 }, System.Threading.Tasks.TaskScheduler.Default);
                 return false;
+            }
+
+            // Not dirty: remove synthetic OpenFiles key before closing.
+            if (_fsmOpenFilesKey != null)
+            {
+                _mainDockService?.OpenFiles.Remove(_fsmOpenFilesKey);
+                _fsmOpenFilesKey = null;
             }
 
             Reset();
