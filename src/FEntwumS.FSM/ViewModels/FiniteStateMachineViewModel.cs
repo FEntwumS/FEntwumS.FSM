@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
+using Avalonia.Media;
+using System.Reactive.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Core;
@@ -14,6 +16,7 @@ using OneWare.Essentials.ViewModels;
 using OneWare.Essentials.Services;
 using OneWare.Essentials.Models;
 using OneWare.Essentials.Enums;
+using OneWare.Essentials.Extensions;
 
 namespace FEntwumS.FSM.ViewModels;
 
@@ -236,7 +239,14 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         ClearUndoHistory();
 
         if (string.IsNullOrWhiteSpace(path) || !System.IO.File.Exists(path))
+        {
+            IsLoading = false;
+            var setterEarly = typeof(ExtendedDocument)
+                .GetProperty(nameof(Icon))
+                ?.GetSetMethod(nonPublic: true);
+            setterEarly?.Invoke(this, new object?[] { new IconModel { IconObservable = Observable.Return<IImage?>(CreateFsmGraphIcon()) } });
             return;
+        }
 
         try
         {
@@ -305,6 +315,53 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             Transitions.Clear();
             InitialTransitions.Clear();
         }
+        finally
+        {
+            IsLoading = false;
+
+            // Set the FSM graph icon scoped to this tab only.
+            // ExtendedDocument.Icon has a private setter, so reflection is required.
+            var setter = typeof(ExtendedDocument)
+                .GetProperty(nameof(Icon))
+                ?.GetSetMethod(nonPublic: true);
+            setter?.Invoke(this, new object?[] { new IconModel { IconObservable = Observable.Return<IImage?>(CreateFsmGraphIcon()) } });
+        }
+    }
+
+    private static DrawingImage CreateFsmGraphIcon()
+    {
+        var geometry = PathGeometry.Parse(
+            "M 8,1 C 4.13,1 1,4.13 1,8 C 1,11.87 4.13,15 8,15 " +
+            "C 11.22,15 13.88,12.86 14.72,9.94 L 14.72,7.5 L 8,7.5 " +
+            "L 8,9 L 13,9 C 12.42,11.34 10.38,13 8,13 " +
+            "C 5.24,13 3,10.76 3,8 C 3,5.24 5.24,3 8,3 " +
+            "C 9.48,3 10.81,3.59 11.79,4.54 L 13.22,3.12 " +
+            "C 11.88,1.81 10.04,1 8,1 Z");
+
+        return new DrawingImage
+        {
+            Drawing = new GeometryDrawing
+            {
+                Geometry = geometry,
+                Brush = new SolidColorBrush(Color.FromRgb(255, 140, 0))
+            }
+        };
+    }
+
+    public override void InitializeContent()
+    {
+        // Guard: if _mainDockService is null, this instance was created by the dock serializer
+        // during layout restore (bypassing our constructor). Skip initialization entirely —
+        // it will be re-created properly when the user opens "View FSM-Graph" again.
+        if (_mainDockService == null)
+            return;
+
+        base.InitializeContent();
+        // Remove from OpenFiles so regular file-open actions (double-click, context menu "Open")
+        // are not redirected to this FSM editor. The FSM editor is opened explicitly via
+        // the "View FSM-Graph" context menu and should not claim the file path as occupied.
+        if (!string.IsNullOrWhiteSpace(FullPath))
+            _mainDockService.OpenFiles.Remove(FullPath.ToPathKey());
     }
 
     protected override void UpdateCurrentFile(string? oldPath)
@@ -315,6 +372,10 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             Signals.Clear();
             Transitions.Clear();
             Title = "New FSM-Graph";
+            var setter = typeof(ExtendedDocument)
+                .GetProperty(nameof(Icon))
+                ?.GetSetMethod(nonPublic: true);
+            setter?.Invoke(this, new object?[] { new IconModel { IconObservable = Observable.Return<IImage?>(CreateFsmGraphIcon()) } });
             return;
         }
 
@@ -1016,26 +1077,25 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
     public override bool OnClose()
     {
-        var path = string.IsNullOrWhiteSpace(FullPath) ? FilePath : FullPath;
-
         try
         {
-            if (IsDirty && !string.IsNullOrWhiteSpace(path))
+            if (IsDirty)
             {
-                _ = _mainDockService.CloseFileAsync(path);
+                // The FSM editor is not registered in OpenFiles, so CloseFileAsync won't find it.
+                // Call TryCloseAsync directly to show the save dialog, then close the dockable.
+                _ = TryCloseAsync().ContinueWith(t =>
+                {
+                    if (t.Result)
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() => _mainDockService.CloseDockable(this));
+                }, System.Threading.Tasks.TaskScheduler.Default);
                 return false;
-            }
-
-            if (!string.IsNullOrWhiteSpace(path))
-            {
-                // Keep OneWare's persisted open-file tracking intact during shutdown restore.
             }
 
             Reset();
         }
         catch (Exception ex)
         {
-        Console.WriteLine($"ERROR OCCURED IN OnClose: {ex}");
+            Console.WriteLine($"ERROR OCCURED IN OnClose: {ex}");
         }
 
         _originalDocument = null;
