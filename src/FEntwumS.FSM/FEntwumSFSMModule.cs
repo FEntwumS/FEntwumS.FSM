@@ -153,13 +153,19 @@ public class FEntwumSFSMModule : IOneWareModule
 
                     folder.AddFile($"{name}.fsmxml");
 
-                    // Ensure *.fsmxml is visible in the project explorer.
+                    // Ensure *.fsmxml, *.e, *.h, *.c are visible in the project explorer.
                     var root = folder.Root;
-                    if (!root.IsPathIncluded("test.fsmxml"))
+                    var rootChanged = false;
+                    foreach (var (testFile, pattern) in new[] { ("test.fsmxml", "*.fsmxml"), ("test.e", "*.e"), ("test.h", "*.h"), ("test.c", "*.c") })
                     {
-                        root.IncludePath("*.fsmxml");
-                        await projectExplorerService.SaveProjectAsync(root);
+                        if (!root.IsPathIncluded(testFile))
+                        {
+                            root.IncludePath(pattern);
+                            rootChanged = true;
+                        }
                     }
+                    if (rootChanged)
+                        await projectExplorerService.SaveProjectAsync(root);
 
                     await fsmService.ShowFiniteStateMachineByPathAsync(fullPath);
                 })
@@ -174,14 +180,20 @@ public class FEntwumSFSMModule : IOneWareModule
                 menuItems.Add(newStateDiagramItem);
         });
 
-        // Ensure *.fsmxml is in the include list for all currently loaded and future projects.
+        // Ensure *.fsmxml, *.e, *.h, *.c are in the include list for all currently loaded and future projects.
         void EnsureFsmxmlIncluded(IProjectRoot proj)
         {
-            if (!proj.IsPathIncluded("test.fsmxml"))
+            var changed = false;
+            foreach (var (testFile, pattern) in new[] { ("test.fsmxml", "*.fsmxml"), ("test.e", "*.e"), ("test.h", "*.h"), ("test.c", "*.c") })
             {
-                proj.IncludePath("*.fsmxml");
-                _ = projectExplorerService.SaveProjectAsync(proj);
+                if (!proj.IsPathIncluded(testFile))
+                {
+                    proj.IncludePath(pattern);
+                    changed = true;
+                }
             }
+            if (changed)
+                _ = projectExplorerService.SaveProjectAsync(proj);
         }
 
         foreach (var proj in projectExplorerService.Projects)
@@ -193,5 +205,18 @@ public class FEntwumSFSMModule : IOneWareModule
             foreach (IProjectRoot proj in e.NewItems)
                 EnsureFsmxmlIncluded(proj);
         };
+
+        // Register project-level output path setting under the "FEntwumS.FSM" category.
+        var projectSettingsService = serviceProvider.GetRequiredService<IProjectSettingsService>();
+        projectSettingsService.AddProjectSetting(new ProjectSetting(
+            "FEntwumS.FSM.OutputPath",
+            new FolderPathSetting(
+                "Output Directory",
+                "",
+                "Default: <project folder>/out",
+                null,
+                null),
+            _ => true,
+            "FEntwumS.FSM"));
     }
 }

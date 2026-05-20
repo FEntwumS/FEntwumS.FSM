@@ -147,7 +147,7 @@
                                         <x:String>bit_n</x:String>
                                     </ComboBox>
                                 </Grid>
-                                <Grid ColumnDefinitions="Auto,*,Auto"
+                                <Grid ColumnDefinitions="Auto,*"
                                       ColumnSpacing="8"
                                       IsVisible="{Binding IsBitN}">
                                     <TextBlock Text="Size"
@@ -157,10 +157,10 @@
                                              GotFocus="OnSignalEditorGotFocus"
                                              LostFocus="OnSignalEditorLostFocus"
                                              KeyDown="OnSignalEditorKeyDown"/>
-                                    <Button Grid.Column="2"
-                                            Content="Delete"
-                                            Click="OnDeleteSignalClicked"/>
                                 </Grid>
+                                <Button HorizontalAlignment="Right"
+                                        Content="Delete"
+                                        Click="OnDeleteSignalClicked"/>
                             </StackPanel>
                         </Border>
                     </DataTemplate>

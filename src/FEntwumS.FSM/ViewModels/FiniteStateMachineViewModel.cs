@@ -242,6 +242,31 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     public void ShowNotification(string title, string message, NotificationType type = NotificationType.Information)
         => _windowService?.ShowNotification(title, message, type);
 
+    /// <summary>
+    /// Returns the configured output directory for backend generation.
+    /// Reads "FEntwumS.FSM.OutputPath" from the project settings.
+    /// Falls back to a sibling "out" folder next to the project root (or FSM file).
+    /// </summary>
+    public string GetOutputPath()
+    {
+        var entry = _projectExplorerService?.GetEntryFromFullPath(FilePath);
+        var root = entry?.Root;
+
+        if (root is IProjectRootWithFile rootWithFile)
+        {
+            var configured = rootWithFile.Properties.GetString("FEntwumS.FSM.OutputPath");
+            if (!string.IsNullOrWhiteSpace(configured))
+                return configured;
+
+            return System.IO.Path.Combine(rootWithFile.RootFolderPath, "out");
+        }
+
+        // Fallback when the file is not part of a project.
+        return System.IO.Path.Combine(
+            System.IO.Path.GetDirectoryName(FilePath) ?? ".",
+            "out");
+    }
+
     public void LoadFromFile(string path)
     {
         Signals.Clear();

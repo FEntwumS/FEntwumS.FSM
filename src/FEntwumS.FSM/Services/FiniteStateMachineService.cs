@@ -135,12 +135,18 @@ public class FiniteStateMachineService : IFiniteStateMachineService
 
         project.AddFile($"{name}.fsmxml");
 
-        // Ensure *.fsmxml is visible in the project explorer.
-        if (!project.IsPathIncluded("test.fsmxml"))
+        // Ensure *.fsmxml, *.e, *.h, *.c are visible in the project explorer.
+        var projectChanged = false;
+        foreach (var (testFile, pattern) in new[] { ("test.fsmxml", "*.fsmxml"), ("test.e", "*.e"), ("test.h", "*.h"), ("test.c", "*.c") })
         {
-            project.IncludePath("*.fsmxml");
-            await _projectExplorerService.SaveProjectAsync(project);
+            if (!project.IsPathIncluded(testFile))
+            {
+                project.IncludePath(pattern);
+                projectChanged = true;
+            }
         }
+        if (projectChanged)
+            await _projectExplorerService.SaveProjectAsync(project);
 
         await ShowFiniteStateMachineByPathAsync(fullPath);
     }

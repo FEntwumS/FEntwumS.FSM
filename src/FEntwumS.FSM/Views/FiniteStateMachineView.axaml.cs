@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Notifications;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Media;
@@ -1153,21 +1152,15 @@ public partial class FiniteStateMachineView : UserControl
             // Always flush the current in-editor state to disk before calling the backend.
             await vm.SaveToFile(inputPath);
 
-            // ── Step 2: Ask for output directory (generate operations only) ──
+            // ── Step 2: Resolve output directory (generate operations only) ──
+            // Uses the path configured in Project Settings → FEntwumS.FSM → Output Directory.
+            // When the field is empty the default is <project root>/out.
             string? outputDir = null;
 
             if (askForOutputDir)
             {
-                var topLevel = TopLevel.GetTopLevel(this);
-                if (topLevel == null) return;
-
-                var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-                {
-                    Title = $"Select Output Directory for {operationName}"
-                });
-
-                if (folders.Count == 0) return;
-                outputDir = folders[0].Path.LocalPath;
+                outputDir = vm.GetOutputPath();
+                System.IO.Directory.CreateDirectory(outputDir);
             }
 
             // ── Step 3: Locate the backend JAR ───────────────────────────────
@@ -1250,9 +1243,8 @@ public partial class FiniteStateMachineView : UserControl
         }
         catch (Exception ex)
         {
-            // Use ShowNotification (sync, no window needed) to avoid re-entering async dialogs
             if (DataContext is FiniteStateMachineViewModel vm2)
-                vm2.ShowNotification($"{operationName} Error", ex.Message, NotificationType.Error);
+                await vm2.ShowMessageAsync($"{operationName} Error", ex.Message, MessageBoxIcon.Error);
         }
     }
 }
