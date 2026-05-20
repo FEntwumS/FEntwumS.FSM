@@ -153,6 +153,14 @@ public class FEntwumSFSMModule : IOneWareModule
 
                     folder.AddFile($"{name}.fsmxml");
 
+                    // Ensure *.fsmxml is visible in the project explorer.
+                    var root = folder.Root;
+                    if (!root.IsPathIncluded("test.fsmxml"))
+                    {
+                        root.IncludePath("*.fsmxml");
+                        await projectExplorerService.SaveProjectAsync(root);
+                    }
+
                     await fsmService.ShowFiniteStateMachineByPathAsync(fullPath);
                 })
             };
@@ -165,5 +173,25 @@ public class FEntwumSFSMModule : IOneWareModule
             else
                 menuItems.Add(newStateDiagramItem);
         });
+
+        // Ensure *.fsmxml is in the include list for all currently loaded and future projects.
+        void EnsureFsmxmlIncluded(IProjectRoot proj)
+        {
+            if (!proj.IsPathIncluded("test.fsmxml"))
+            {
+                proj.IncludePath("*.fsmxml");
+                _ = projectExplorerService.SaveProjectAsync(proj);
+            }
+        }
+
+        foreach (var proj in projectExplorerService.Projects)
+            EnsureFsmxmlIncluded(proj);
+
+        projectExplorerService.Projects.CollectionChanged += (_, e) =>
+        {
+            if (e.NewItems is null) return;
+            foreach (IProjectRoot proj in e.NewItems)
+                EnsureFsmxmlIncluded(proj);
+        };
     }
 }

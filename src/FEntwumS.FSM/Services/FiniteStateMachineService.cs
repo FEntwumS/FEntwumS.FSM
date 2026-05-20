@@ -135,6 +135,13 @@ public class FiniteStateMachineService : IFiniteStateMachineService
 
         project.AddFile($"{name}.fsmxml");
 
+        // Ensure *.fsmxml is visible in the project explorer.
+        if (!project.IsPathIncluded("test.fsmxml"))
+        {
+            project.IncludePath("*.fsmxml");
+            await _projectExplorerService.SaveProjectAsync(project);
+        }
+
         await ShowFiniteStateMachineByPathAsync(fullPath);
     }
 
