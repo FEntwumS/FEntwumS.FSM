@@ -60,6 +60,7 @@ public partial class TransitionViewModel : ObservableObject
     [ObservableProperty] private bool _isEditingCondition;
     [ObservableProperty] private bool _isEditingOutputAssignments;
     [ObservableProperty] private bool _isSelected;
+    [ObservableProperty] private bool _isHovered;
     [ObservableProperty] private bool _isInitialTransition;
     [ObservableProperty] private double _sourceAnchorLane;
     [ObservableProperty] private double _targetAnchorLane;

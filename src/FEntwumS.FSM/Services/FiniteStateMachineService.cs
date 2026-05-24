@@ -83,7 +83,7 @@ public class FiniteStateMachineService : IFiniteStateMachineService
         switch (dialog.Result)
         {
             case FEntwumS.FSM.Views.FsmChoiceResult.CreateNew:
-                await CreateNewFromToolbarAsync();
+                await CreateNewFromToolbarAsync(dialog.SelectedGraphType);
                 break;
             case FEntwumS.FSM.Views.FsmChoiceResult.LoadExisting:
                 await LoadExistingFromToolbarAsync();
@@ -92,7 +92,7 @@ public class FiniteStateMachineService : IFiniteStateMachineService
     }
 
     // Same workflow as right-click -> Add -> New State Diagram, but targets the active project root.
-    private async Task CreateNewFromToolbarAsync()
+    private async Task CreateNewFromToolbarAsync(FsmGraphType graphType)
     {
         var project = _projectExplorerService.ActiveProject;
         if (project is null)
@@ -123,10 +123,11 @@ public class FiniteStateMachineService : IFiniteStateMachineService
             return;
         }
 
+        var graphTypeName = graphType == FsmGraphType.Mealy ? "mealy" : "moore";
         var content =
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             $"<scxml xmlns=\"http://www.w3.org/2005/07/scxml\" version=\"1.0\" " +
-            $"profile=\"diagram\" name=\"{name}\" initial=\"\" graph_type=\"mealy\">\n" +
+            $"profile=\"diagram\" name=\"{name}\" initial=\"\" graph_type=\"{graphTypeName}\">\n" +
             "  <signals></signals>\n" +
             "  <variables></variables>\n" +
             "  <states></states>\n" +

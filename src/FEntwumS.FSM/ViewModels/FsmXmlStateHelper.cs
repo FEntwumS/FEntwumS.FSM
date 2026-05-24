@@ -38,7 +38,7 @@ public static class FsmXmlStateHelper
         return document.Root.Attribute("initial")?.Value ?? string.Empty;
     }
 
-    public static void SyncInitialStateMetadata(XDocument document, XNamespace ns, IEnumerable<StateItemViewModel> states, TransitionViewModel? initialTransition = null)
+    public static void SyncInitialStateMetadata(XDocument document, XNamespace ns, IEnumerable<StateItemViewModel> states, TransitionViewModel? initialTransition = null, IEnumerable<SignalDefinitionViewModel>? signals = null, FsmGraphType graphType = FsmGraphType.Moore)
     {
         if (document.Root is null)
             return;
@@ -62,7 +62,7 @@ public static class FsmXmlStateHelper
         }
 
         startNode.SetAttributeValue("target", initialStateId);
-        startNode.SetAttributeValue("condition", initialTransition?.Condition ?? startNode.Attribute("condition")?.Value ?? string.Empty);
+        startNode.SetAttributeValue("condition", initialTransition?.Condition ?? startNode.Attribute("condition")?.Value ?? "1");
 
         if (initialTransition is not null)
         {
@@ -79,6 +79,13 @@ public static class FsmXmlStateHelper
             ctrlPointsEl.RemoveAll();
             foreach (var cp in initialTransition.ControlPoints)
                 ctrlPointsEl.Add(new XElement(ns + "ctrlPoint", new XAttribute("x", (int)cp.X), new XAttribute("y", (int)cp.Y)));
+
+            startNode.Elements(ns + "assign").Remove();
+            if (graphType == FsmGraphType.Mealy && signals is not null)
+            {
+                foreach (var assignElement in CreateAssignElements(initialTransition.OutputAssignments, ns, signals))
+                    startNode.Add(assignElement);
+            }
         }
         else if (initialState is not null)
         {
@@ -100,7 +107,7 @@ public static class FsmXmlStateHelper
         element.SetAttributeValue("y", (int)y);
     }
 
-    public static TransitionViewModel? ReadInitialTransition(XDocument? document, XNamespace ns, IReadOnlyDictionary<string, StateItemViewModel> statesById)
+    public static TransitionViewModel? ReadInitialTransition(XDocument? document, XNamespace ns, IReadOnlyDictionary<string, StateItemViewModel> statesById, IEnumerable<SignalDefinitionViewModel>? signals = null, FsmGraphType graphType = FsmGraphType.Moore)
     {
         var startNode = document?.Root?.Element(ns + "startNode");
         if (startNode is null)
@@ -129,6 +136,9 @@ public static class FsmXmlStateHelper
             IsInitialTransition = true,
             TargetState = targetState,
             Condition = condition,
+            OutputAssignments = graphType == FsmGraphType.Mealy && signals is not null
+                ? ReadTransitionOutputAssignments(startNode, ns, signals)
+                : string.Empty,
             IsAutoRouted = false
         };
         t.StartPoint.X = startX;

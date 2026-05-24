@@ -17,20 +17,40 @@
                    Margin="0,0,0,4"/>
 
         <!-- Create New Graph -->
-        <Button x:Name="CreateButton"
-                HorizontalAlignment="Stretch"
-                Padding="16,12"
-                Click="OnCreateClicked">
-            <StackPanel Spacing="4">
+        <Border Background="#1a1a1c"
+                BorderBrush="#3e3e42"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="12,10">
+            <StackPanel Spacing="8">
                 <TextBlock Text="Create New Graph"
                            FontWeight="SemiBold"
                            HorizontalAlignment="Center"/>
-                <TextBlock Text="Start a blank state diagram in your project"
+                <TextBlock Text="Choose a graph type:"
                            FontSize="11"
                            Opacity="0.7"
                            HorizontalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            Spacing="16">
+                    <RadioButton x:Name="MooreRadio"
+                                 Content="Moore"
+                                 GroupName="GraphType"
+                                 Checked="OnGraphTypeChecked"/>
+                    <RadioButton x:Name="MealyRadio"
+                                 Content="Mealy"
+                                 GroupName="GraphType"
+                                 Checked="OnGraphTypeChecked"/>
+                </StackPanel>
+                <Button x:Name="CreateButton"
+                        HorizontalAlignment="Stretch"
+                        Padding="12,8"
+                        IsEnabled="False"
+                        Click="OnCreateClicked">
+                    <TextBlock Text="Create" HorizontalAlignment="Center"/>
+                </Button>
             </StackPanel>
-        </Button>
+        </Border>
 
         <!-- Load Existing Graph -->
         <Button x:Name="LoadButton"

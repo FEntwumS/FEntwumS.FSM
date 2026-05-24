@@ -53,7 +53,6 @@ public partial class FiniteStateMachineView : UserControl
     private bool _transitionLayoutChanged;
     private TransitionDragMode _transitionDragMode;
     private double _zoomLevel = DefaultZoomLevel;
-    private bool _isCursorModeEnabled;
     private bool _isPanningCanvas;
     private Point _lastCanvasPanSurfacePosition;
     private double _panOffsetX;
@@ -279,13 +278,31 @@ public partial class FiniteStateMachineView : UserControl
     private void OnStatePointerEntered(object? sender, PointerEventArgs e)
     {
         if (sender is Control { DataContext: StateItemViewModel state })
+        {
+            state.IsHovered = true;
             state.UpdateHoverAnchor(GetEditorPosition(e));
+        }
     }
 
     private void OnStatePointerExited(object? sender, PointerEventArgs e)
     {
         if (sender is Control { DataContext: StateItemViewModel state })
+        {
+            state.IsHovered = false;
             state.HideHoverAnchor();
+        }
+    }
+
+    private void OnTransitionPointerEntered(object? sender, PointerEventArgs e)
+    {
+        if (sender is Control { DataContext: TransitionViewModel transition })
+            transition.IsHovered = true;
+    }
+
+    private void OnTransitionPointerExited(object? sender, PointerEventArgs e)
+    {
+        if (sender is Control { DataContext: TransitionViewModel transition })
+            transition.IsHovered = false;
     }
 
     private void OnTransitionDoubleTapped(object? sender, TappedEventArgs e)
@@ -605,6 +622,54 @@ public partial class FiniteStateMachineView : UserControl
         transition.IsEditingOutputAssignments = false;
     }
 
+    private bool _clampingOutputText;
+
+    private void OnOutputAssignmentsTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (_clampingOutputText || sender is not TextBox tb)
+            return;
+        if (DataContext is not FiniteStateMachineViewModel mainVm)
+            return;
+
+        var outputSignals = mainVm.Signals
+            .Where(s => s.IsOutput && !string.IsNullOrWhiteSpace(s.Name))
+            .ToList();
+        if (outputSignals.Count == 0)
+            return;
+
+        var text = tb.Text ?? string.Empty;
+        var lines = text.Split('\n');
+        var changed = false;
+
+        for (var i = 0; i < lines.Length && i < outputSignals.Count; i++)
+        {
+            // Strip \r so we measure only actual content characters
+            var line = lines[i].TrimEnd('\r');
+            var maxLen = outputSignals[i].BitWidth;
+            if (line.Length > maxLen)
+            {
+                lines[i] = line[..maxLen] + (lines[i].EndsWith('\r') ? "\r" : string.Empty);
+                changed = true;
+            }
+        }
+
+        if (!changed)
+            return;
+
+        var clamped = string.Join('\n', lines);
+        _clampingOutputText = true;
+        try
+        {
+            var caretIndex = Math.Min(tb.CaretIndex, clamped.Length);
+            tb.Text = clamped;
+            tb.CaretIndex = caretIndex;
+        }
+        finally
+        {
+            _clampingOutputText = false;
+        }
+    }
+
     private void OnCanvasPointerMoved(object? sender, PointerEventArgs e)
     {
         if (_isPanningCanvas)
@@ -649,10 +714,9 @@ public partial class FiniteStateMachineView : UserControl
         if (e.Source is StyledElement { DataContext: StateItemViewModel or TransitionViewModel })
             return;
 
-        if (!e.GetCurrentPoint(EditorSurface).Properties.IsLeftButtonPressed)
-            return;
+        var point = e.GetCurrentPoint(EditorSurface);
 
-        if (_isCursorModeEnabled)
+        if (point.Properties.IsRightButtonPressed)
         {
             _isPanningCanvas = true;
             _lastCanvasPanSurfacePosition = GetSurfacePosition(e);
@@ -660,6 +724,9 @@ public partial class FiniteStateMachineView : UserControl
             e.Handled = true;
             return;
         }
+
+        if (!point.Properties.IsLeftButtonPressed)
+            return;
 
         _isMarqueeSelecting = true;
         _marqueeStartPosition = GetEditorPosition(e);
@@ -1020,12 +1087,6 @@ public partial class FiniteStateMachineView : UserControl
         AdjustZoom(-ZoomStep, GetViewportCenter());
     }
 
-    private void OnCursorModeClicked(object? sender, RoutedEventArgs e)
-    {
-        _isCursorModeEnabled = !_isCursorModeEnabled;
-        UpdateCursorModeVisuals();
-    }
-
     private void OnEditorPointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
         if (Math.Abs(e.Delta.Y) < double.Epsilon)
@@ -1075,17 +1136,6 @@ public partial class FiniteStateMachineView : UserControl
 
         if (ZoomLevelText is not null)
             ZoomLevelText.Text = $"{_zoomLevel:P0}";
-
-        UpdateCursorModeVisuals();
-    }
-
-    private void UpdateCursorModeVisuals()
-    {
-        if (CursorModeButton is not null)
-            CursorModeButton.Content = _isCursorModeEnabled ? "Cursor Mode: On" : "Cursor Mode: Off";
-
-        if (EditorSurface is not null)
-            EditorSurface.Cursor = _isCursorModeEnabled ? new Cursor(StandardCursorType.SizeAll) : new Cursor(StandardCursorType.Arrow);
     }
 
     private Point GetViewportCenter()

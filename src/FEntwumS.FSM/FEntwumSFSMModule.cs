@@ -64,11 +64,13 @@ public class FEntwumSFSMModule : IOneWareModule
             }));
 
         // Route .fsmxml files directly to the FSM Graph View instead of the text editor.
+        bool bypassFsmOverwrite = false;
         mainDockService.RegisterFileOpenOverwrite(path =>
         {
+            if (bypassFsmOverwrite) return false;
             _ = fsmService.ShowFiniteStateMachineByPathAsync(path);
             return true;
-        });
+        }, ".fsmxml");
 
         // "View FSM-Graph" context menu entry for .xml, .scxml, and .fsmxml files.
         projectExplorerService.RegisterConstructContextMenu((selection, menuItems) =>
@@ -90,8 +92,7 @@ public class FEntwumSFSMModule : IOneWareModule
                     : file.Extension;
 
                 if (string.Equals(extension, ".xml", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(extension, ".scxml", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(extension, ".fsmxml", StringComparison.OrdinalIgnoreCase))
+                    || string.Equals(extension, ".scxml", StringComparison.OrdinalIgnoreCase))
                 {
                     menuItems.Add(new MenuItemModel("FEntwumS.FSM.OpenFiniteStateMachine")
                     {
@@ -100,6 +101,27 @@ public class FEntwumSFSMModule : IOneWareModule
                         Priority = 100,
                         Command = new AsyncRelayCommand(async () =>
                             await fsmService.ShowFiniteStateMachineAsync(file))
+                    });
+                }
+
+                if (string.Equals(extension, ".fsmxml", StringComparison.OrdinalIgnoreCase))
+                {
+                    menuItems.Add(new MenuItemModel("FEntwumS.FSM.ViewXml")
+                    {
+                        Header = "View XML",
+                        IsEnabled = true,
+                        Priority = 99,
+                        Command = new AsyncRelayCommand(async () =>
+                        {
+                            var fsmVm = mainDockService.SearchView<FiniteStateMachineViewModel>()
+                                .FirstOrDefault(vm => string.Equals(vm.FilePath, file.FullPath, StringComparison.OrdinalIgnoreCase));
+                            if (fsmVm != null)
+                                await fsmVm.SaveAsync();
+                            await mainDockService.CloseFileAsync(file.FullPath);
+                            bypassFsmOverwrite = true;
+                            try { await mainDockService.OpenFileAsync(file.FullPath); }
+                            finally { bypassFsmOverwrite = false; }
+                        })
                     });
                 }
                 return;

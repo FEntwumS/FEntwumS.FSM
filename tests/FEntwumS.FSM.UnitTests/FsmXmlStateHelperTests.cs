@@ -190,7 +190,7 @@ public class FsmXmlStateHelperTests
         Assert.Equal("bit", signals[0].Type);
         Assert.Equal("L", signals[1].Name);
         Assert.Equal("out", signals[1].Direction);
-        Assert.Equal("vector", signals[1].Type);
+        Assert.Equal("bit_n", signals[1].Type);
         Assert.Equal("3", signals[1].Size);
     }
 
@@ -202,7 +202,7 @@ public class FsmXmlStateHelperTests
         var signals = new[]
         {
             new SignalDefinitionViewModel { Name = "K", Direction = "in", Type = "bit" },
-            new SignalDefinitionViewModel { Name = "L", Direction = "out", Type = "vector", Size = "3" }
+            new SignalDefinitionViewModel { Name = "L", Direction = "out", Type = "bit_n", Size = "3" }
         };
 
         FsmXmlStateHelper.SyncSignalsMetadata(doc, ns, signals);

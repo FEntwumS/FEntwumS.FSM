@@ -19,6 +19,7 @@ public partial class StateItemViewModel : ObservableObject
     [ObservableProperty] private bool _isFinalState;
     [ObservableProperty] private bool _isSelected;
     [ObservableProperty] private string _outputAssignments = string.Empty;
+    [ObservableProperty] private bool _isHovered;
     [ObservableProperty] private bool _isHoverAnchorVisible;
     [ObservableProperty] private double _hoverAnchorLeft;
     [ObservableProperty] private double _hoverAnchorTop;

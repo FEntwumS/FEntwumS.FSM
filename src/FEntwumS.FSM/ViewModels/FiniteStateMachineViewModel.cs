@@ -84,6 +84,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     public sealed record InitialTransitionSnapshot(
         int TargetIndex,
         string Condition,
+        string OutputAssignments,
         PointSnapshot StartPoint,
         PointSnapshot EndPoint,
         PointSnapshot ConditionPosition,
@@ -99,6 +100,37 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     {
         OnPropertyChanged(nameof(IsMooreGraph));
         OnPropertyChanged(nameof(IsMealyGraph));
+
+        if (_isRestoringSnapshot)
+            return;
+
+        if (States.Count == 0)
+            return;
+
+        if (value == FsmGraphType.Mealy)
+        {
+            // Moore → Mealy: copy state outputs to outgoing transitions
+            foreach (var state in States)
+            {
+                if (string.IsNullOrWhiteSpace(state.OutputAssignments))
+                    continue;
+                var outgoing = Transitions.Where(t => ReferenceEquals(t.SourceState, state)).ToList();
+                foreach (var t in outgoing)
+                    t.OutputAssignments = state.OutputAssignments;
+                state.OutputAssignments = string.Empty;
+            }
+        }
+        else
+        {
+            // Mealy → Moore: copy transition outputs to target states
+            foreach (var transition in Transitions)
+            {
+                if (!string.IsNullOrWhiteSpace(transition.OutputAssignments)
+                    && transition.TargetState is not null)
+                    transition.TargetState.OutputAssignments = transition.OutputAssignments;
+                transition.OutputAssignments = string.Empty;
+            }
+        }
     }
 
     public FiniteStateMachineViewModel(
@@ -233,7 +265,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             statesContainer.Add(stateElement);
         }
 
-        FsmXmlStateHelper.SyncInitialStateMetadata(doc, ns, States, InitialTransitions.FirstOrDefault());
+        FsmXmlStateHelper.SyncInitialStateMetadata(doc, ns, States, InitialTransitions.FirstOrDefault(), Signals, GraphType);
     }
 
     public Task ShowMessageAsync(string title, string message, MessageBoxIcon icon, Window? owner = null)
@@ -331,7 +363,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             }
 
             // Load initial transition from XML
-            var initTransition = FsmXmlStateHelper.ReadInitialTransition(_originalDocument, _ns, statesById);
+            var initTransition = FsmXmlStateHelper.ReadInitialTransition(_originalDocument, _ns, statesById, Signals, GraphType);
             if (initTransition is not null)
                 InitialTransitions.Add(initTransition);
             else
@@ -979,6 +1011,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             .Select(t => new InitialTransitionSnapshot(
                 stateIndexByReference.TryGetValue(t.TargetState!, out var ti) ? ti : 0,
                 t.Condition,
+                t.OutputAssignments,
                 new PointSnapshot(t.StartPoint.X, t.StartPoint.Y),
                 new PointSnapshot(t.EndPoint.X, t.EndPoint.Y),
                 new PointSnapshot(t.ConditionPosition.X, t.ConditionPosition.Y),
@@ -1130,6 +1163,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
                     IsInitialTransition = true,
                     TargetState = restoredStates[initSnap.TargetIndex],
                     Condition = initSnap.Condition,
+                    OutputAssignments = initSnap.OutputAssignments,
                     IsAutoRouted = false
                 };
                 restoredInit.StartPoint.X = initSnap.StartPoint.X;
