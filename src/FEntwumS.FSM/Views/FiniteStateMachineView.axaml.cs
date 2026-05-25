@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.PanAndZoom;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Media;
@@ -13,11 +14,6 @@ namespace FEntwumS.FSM.Views;
 
 public partial class FiniteStateMachineView : UserControl
 {
-    private const double DefaultZoomLevel = 1.0;
-    private const double MinZoomLevel = 0.4;
-    private const double MaxZoomLevel = 2.5;
-    private const double ZoomStep = 0.1;
-
     private enum TransitionDragMode
     {
         Bend,
@@ -52,31 +48,51 @@ public partial class FiniteStateMachineView : UserControl
     private FiniteStateMachineViewModel.UndoSnapshot? _transitionLayoutUndoSnapshot;
     private bool _transitionLayoutChanged;
     private TransitionDragMode _transitionDragMode;
-    private double _zoomLevel = DefaultZoomLevel;
-    private bool _isPanningCanvas;
-    private Point _lastCanvasPanSurfacePosition;
-    private double _panOffsetX;
-    private double _panOffsetY;
 
     public FiniteStateMachineView()
     {
         InitializeComponent();
-        UpdateZoomVisuals();
         AttachedToVisualTree += (_, _) =>
-    {
-        if (DataContext is FiniteStateMachineViewModel vm &&
-            vm.States.Count == 0 &&
-            !string.IsNullOrWhiteSpace(vm.FullPath) &&
-            System.IO.File.Exists(vm.FullPath))
         {
-            vm.LoadFromFile(vm.FullPath);
-        }
-    };
+            if (DataContext is not FiniteStateMachineViewModel vm) return;
+
+            if (vm.States.Count == 0 &&
+                !string.IsNullOrWhiteSpace(vm.FullPath) &&
+                System.IO.File.Exists(vm.FullPath))
+            {
+                vm.LoadFromFile(vm.FullPath);
+            }
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (ZoomBorder is null) return;
+
+                Point center;
+                if (vm.States.Count > 0)
+                {
+                    var left   = vm.States.Min(s => s.X);
+                    var top    = vm.States.Min(s => s.Y);
+                    var right  = vm.States.Max(s => s.X + s.Width);
+                    var bottom = vm.States.Max(s => s.Y + s.Height);
+                    center = new Point((left + right) / 2.0, (top + bottom) / 2.0);
+                }
+                else
+                {
+                    center = new Point(FsmXmlStateHelper.CanvasOffset, FsmXmlStateHelper.CanvasOffset);
+                }
+
+                ZoomBorder.CenterOn(center, false);
+            }, DispatcherPriority.Background);
+        };
     }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (_isDraggingTransition)
+            return;
+
+        // While in state-placement mode let the click fall through to the canvas handler.
+        if (DataContext is FiniteStateMachineViewModel placingVm && placingVm.IsPlacingState)
             return;
 
         var pointerProperties = e.GetCurrentPoint(this).Properties;
@@ -92,7 +108,7 @@ public partial class FiniteStateMachineView : UserControl
                 _isDraggingTransition = true;
                 transitionVm.BeginTransition(vm, vm.HoverAnchorSide, vm.HoverAnchorPoint);
                 transitionVm.UpdateDraftTransitionEndPoint(vm.HoverAnchorPoint.X, vm.HoverAnchorPoint.Y);
-                e.Pointer.Capture(EditorSurface);
+                e.Pointer.Capture(ZoomBorder);
                 e.Handled = true;
                 return;
             }
@@ -672,14 +688,14 @@ public partial class FiniteStateMachineView : UserControl
 
     private void OnCanvasPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (_isPanningCanvas)
+        // Move ghost preview while in state-placement mode.
+        if (DataContext is FiniteStateMachineViewModel placingVm && placingVm.IsPlacingState)
         {
-            var currentSurfacePosition = GetSurfacePosition(e);
-            var delta = currentSurfacePosition - _lastCanvasPanSurfacePosition;
-            _panOffsetX += delta.X;
-            _panOffsetY += delta.Y;
-            _lastCanvasPanSurfacePosition = currentSurfacePosition;
-            UpdateZoomVisuals();
+            var pos = GetEditorPosition(e);
+            GhostState.IsVisible = true;
+            GhostState.Margin = new Thickness(pos.X - 72, pos.Y - 32, 0, 0);
+            if (ZoomBorder is not null)
+                ZoomBorder.Cursor = new Cursor(StandardCursorType.Cross);
             e.Handled = true;
             return;
         }
@@ -703,27 +719,45 @@ public partial class FiniteStateMachineView : UserControl
 
     private void OnCanvasPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (_isDraggingTransition)
+        if (_isDraggingTransition || e.Handled)
             return;
 
-        EditorSurface?.Focus();
+        ZoomBorder?.Focus();
 
         if (DataContext is not FiniteStateMachineViewModel mainVm)
             return;
 
+        // Commit or cancel state placement before any other canvas interaction.
+        if (mainVm.IsPlacingState)
+        {
+            var placementPoint = e.GetCurrentPoint(ZoomBorder);
+            if (placementPoint.Properties.IsLeftButtonPressed)
+            {
+                var pos = GetEditorPosition(e);
+                mainVm.CommitPlaceState(pos.X - 72, pos.Y - 32);
+                GhostState.IsVisible = false;
+                if (ZoomBorder is not null) ZoomBorder.Cursor = Cursor.Default;
+                e.Handled = true;
+                return;
+            }
+            if (placementPoint.Properties.IsRightButtonPressed)
+            {
+                mainVm.CancelPlaceState();
+                GhostState.IsVisible = false;
+                if (ZoomBorder is not null) ZoomBorder.Cursor = Cursor.Default;
+                e.Handled = true;
+                return;
+            }
+        }
+
         if (e.Source is StyledElement { DataContext: StateItemViewModel or TransitionViewModel })
             return;
 
-        var point = e.GetCurrentPoint(EditorSurface);
+        var point = e.GetCurrentPoint(ZoomBorder);
 
+        // Right-click is handled by ZoomBorder for panning.
         if (point.Properties.IsRightButtonPressed)
-        {
-            _isPanningCanvas = true;
-            _lastCanvasPanSurfacePosition = GetSurfacePosition(e);
-            e.Pointer.Capture(EditorSurface);
-            e.Handled = true;
             return;
-        }
 
         if (!point.Properties.IsLeftButtonPressed)
             return;
@@ -732,21 +766,13 @@ public partial class FiniteStateMachineView : UserControl
         _marqueeStartPosition = GetEditorPosition(e);
         UpdateMarquee(_marqueeStartPosition);
         SelectionRectangle.IsVisible = true;
-        e.Pointer.Capture(EditorSurface);
+        e.Pointer.Capture(ZoomBorder);
         mainVm.ClearSelection();
         e.Handled = true;
     }
 
     private void OnCanvasPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (_isPanningCanvas)
-        {
-            _isPanningCanvas = false;
-            e.Pointer.Capture(null);
-            e.Handled = true;
-            return;
-        }
-
         if (_isMarqueeSelecting)
         {
             FinishMarqueeSelection(e);
@@ -757,6 +783,40 @@ public partial class FiniteStateMachineView : UserControl
             return;
 
         CompleteTransitionDrag(sender as Control, e);
+    }
+
+    private void OnCanvasPointerExited(object? sender, PointerEventArgs e)
+    {
+        GhostState.IsVisible = false;
+    }
+
+    private void OnCanvasDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        // Don't zoom when double-clicking on an existing state or transition.
+        if (e.Source is StyledElement { DataContext: StateItemViewModel or TransitionViewModel })
+            return;
+
+        // Don't zoom while placing a new state.
+        if (DataContext is FiniteStateMachineViewModel vm && vm.IsPlacingState)
+            return;
+
+        if (ZoomBorder is null)
+            return;
+
+        var currentZoom = ZoomBorder.ZoomX;
+        var maxZoom = ZoomBorder.MaxZoomX;
+
+        // Already at the zoom limit — stay locked, no jump.
+        if (currentZoom >= maxZoom - 0.001)
+            return;
+
+        // Zoom in by 2×, clamped to MaxZoomX so we never exceed the limit.
+        var targetZoom = Math.Min(currentZoom * 2.0, maxZoom);
+        var ratio = targetZoom / currentZoom;
+
+        var pos = e.GetPosition(EditorContent);
+        ZoomBorder.ZoomTo(ratio, pos.X, pos.Y, skipTransitions: false);
+        e.Handled = true;
     }
 
     private void FinishMarqueeSelection(PointerReleasedEventArgs e)
@@ -798,20 +858,7 @@ public partial class FiniteStateMachineView : UserControl
 
     private Point GetEditorPosition(PointerEventArgs e)
     {
-        var surfacePosition = GetSurfacePosition(e);
-        return ToContentPosition(surfacePosition);
-    }
-
-    private Point GetSurfacePosition(PointerEventArgs e)
-    {
-        return EditorSurface is null ? e.GetPosition(this) : e.GetPosition(EditorSurface);
-    }
-
-    private Point ToContentPosition(Point surfacePosition)
-    {
-        return new Point(
-            (surfacePosition.X - _panOffsetX) / _zoomLevel,
-            (surfacePosition.Y - _panOffsetY) / _zoomLevel);
+        return EditorContent is null ? e.GetPosition(this) : e.GetPosition(EditorContent);
     }
 
     private void UpdateMarquee(Point currentPosition)
@@ -912,6 +959,16 @@ public partial class FiniteStateMachineView : UserControl
 
         if (e.Key != Key.Escape)
             return;
+
+        // Cancel state-placement mode first.
+        if (mainVm.IsPlacingState)
+        {
+            mainVm.CancelPlaceState();
+            GhostState.IsVisible = false;
+            if (ZoomBorder is not null) ZoomBorder.Cursor = Cursor.Default;
+            e.Handled = true;
+            return;
+        }
 
         foreach (var transition in mainVm.Transitions)
         {
@@ -1079,71 +1136,18 @@ public partial class FiniteStateMachineView : UserControl
 
     private void OnZoomInClicked(object? sender, RoutedEventArgs e)
     {
-        AdjustZoom(ZoomStep, GetViewportCenter());
+        ZoomBorder?.ZoomIn();
     }
 
     private void OnZoomOutClicked(object? sender, RoutedEventArgs e)
     {
-        AdjustZoom(-ZoomStep, GetViewportCenter());
+        ZoomBorder?.ZoomOut();
     }
 
-    private void OnEditorPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    private void OnZoomChanged(object? sender, ZoomChangedEventArgs e)
     {
-        if (Math.Abs(e.Delta.Y) < double.Epsilon)
-            return;
-
-        AdjustZoom(e.Delta.Y > 0 ? ZoomStep : -ZoomStep, GetSurfacePosition(e));
-        e.Handled = true;
-    }
-
-    private void AdjustZoom(double delta, Point? anchorSurfacePosition = null)
-    {
-        SetZoom(_zoomLevel + delta, anchorSurfacePosition);
-    }
-
-    private void SetZoom(double zoomLevel, Point? anchorSurfacePosition = null)
-    {
-        var clampedZoomLevel = Math.Clamp(Math.Round(zoomLevel, 2), MinZoomLevel, MaxZoomLevel);
-        if (Math.Abs(clampedZoomLevel - _zoomLevel) < 0.001)
-            return;
-
-        if (anchorSurfacePosition is Point anchor)
-        {
-            var contentAnchor = ToContentPosition(anchor);
-            _zoomLevel = clampedZoomLevel;
-            _panOffsetX = anchor.X - (contentAnchor.X * _zoomLevel);
-            _panOffsetY = anchor.Y - (contentAnchor.Y * _zoomLevel);
-            UpdateZoomVisuals();
-            return;
-        }
-
-        _zoomLevel = clampedZoomLevel;
-        UpdateZoomVisuals();
-    }
-
-    private void UpdateZoomVisuals()
-    {
-        if (EditorContent?.RenderTransform is TransformGroup transformGroup
-            && transformGroup.Children.Count >= 2
-            && transformGroup.Children[0] is ScaleTransform scaleTransform
-            && transformGroup.Children[1] is TranslateTransform translateTransform)
-        {
-            scaleTransform.ScaleX = _zoomLevel;
-            scaleTransform.ScaleY = _zoomLevel;
-            translateTransform.X = _panOffsetX;
-            translateTransform.Y = _panOffsetY;
-        }
-
         if (ZoomLevelText is not null)
-            ZoomLevelText.Text = $"{_zoomLevel:P0}";
-    }
-
-    private Point GetViewportCenter()
-    {
-        if (EditorSurface is null)
-            return default;
-
-        return new Point(EditorSurface.Bounds.Width / 2, EditorSurface.Bounds.Height / 2);
+            ZoomLevelText.Text = $"{e.ZoomX:P0}";
     }
 
     // ──────────────────────────────────────────────

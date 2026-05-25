@@ -53,6 +53,8 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
     [ObservableProperty] private string _transitionHint = "Drag from a state's hover connector to create a transition.";
 
+    [ObservableProperty] private bool _isPlacingState;
+
     private StateItemViewModel? _pendingTransitionSource;
     private ConnectorSide _pendingTransitionSourceSide;
     private readonly Stack<UndoSnapshot> _undoStack = new();
@@ -256,7 +258,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
             var stateElement = new XElement(ns + "state",
                 new XAttribute("id", state.Id),
-                new XElement(ns + "position", new XAttribute("x", (int)state.X), new XAttribute("y", (int)state.Y)),
+                new XElement(ns + "position", new XAttribute("x", (int)(state.X - FsmXmlStateHelper.CanvasOffset)), new XAttribute("y", (int)(state.Y - FsmXmlStateHelper.CanvasOffset))),
                 new XElement(ns + "size", new XAttribute("width", (int)state.Width), new XAttribute("height", (int)state.Height)),
                 new XElement(ns + "transitions", transitionElements));
 
@@ -344,8 +346,8 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
                 States.Add(new StateItemViewModel
                 {
                     Id = stateId,
-                    X = double.TryParse(pos?.Attribute("x")?.Value, out var x) ? x : 0,
-                    Y = double.TryParse(pos?.Attribute("y")?.Value, out var y) ? y : 0,
+                    X = double.TryParse(pos?.Attribute("x")?.Value, out var x) ? x + FsmXmlStateHelper.CanvasOffset : FsmXmlStateHelper.CanvasOffset,
+                    Y = double.TryParse(pos?.Attribute("y")?.Value, out var y) ? y + FsmXmlStateHelper.CanvasOffset : FsmXmlStateHelper.CanvasOffset,
                     Width = double.TryParse(size?.Attribute("width")?.Value, out var w) ? w : 144,
                     Height = double.TryParse(size?.Attribute("height")?.Value, out var h) ? h : 64,
                     OutputAssignments = GraphType == FsmGraphType.Moore
@@ -503,21 +505,32 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     [RelayCommand]
     private void AddState()
     {
+        IsPlacingState = true;
+    }
+
+    public void CommitPlaceState(double x, double y)
+    {
         PushUndoSnapshot(CreateUndoSnapshot());
         var isFirst = States.Count == 0;
         States.Add(new StateItemViewModel
         {
-            X = 200,
-            Y = 50,
+            X = x,
+            Y = y,
             Id = $"STATE_{States.Count + 1}",
             Width = 144,
             Height = 64,
             OutputAssignments = string.Empty,
             IsInitialState = isFirst
         });
+        IsPlacingState = false;
 
         if (isFirst)
             SyncInitialTransitions();
+    }
+
+    public void CancelPlaceState()
+    {
+        IsPlacingState = false;
     }
 
     [RelayCommand]

@@ -5,6 +5,13 @@ namespace FEntwumS.FSM.ViewModels;
 
 public static class FsmXmlStateHelper
 {
+    /// <summary>
+    /// Offset added to all coordinates when loading from file and subtracted when saving.
+    /// Keeps state positions near the center of the 20000x20000 canvas, giving equal
+    /// pan space in all directions regardless of original file coordinates.
+    /// </summary>
+    public const double CanvasOffset = 10000.0;
+
     private static readonly Regex OutputAssignmentPattern = new(
         @"^(?<signal>[^=]+?)\s*=\s*(?<expr>.+)$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -66,9 +73,9 @@ public static class FsmXmlStateHelper
 
         if (initialTransition is not null)
         {
-            SetOrUpdatePositionElement(startNode, ns + "position", initialTransition.StartPoint.X, initialTransition.StartPoint.Y);
-            SetOrUpdatePositionElement(startNode, ns + "endPoint", initialTransition.EndPoint.X, initialTransition.EndPoint.Y);
-            SetOrUpdatePositionElement(startNode, ns + "conditionPosition", initialTransition.ConditionPosition.X, initialTransition.ConditionPosition.Y);
+            SetOrUpdatePositionElement(startNode, ns + "position", initialTransition.StartPoint.X - CanvasOffset, initialTransition.StartPoint.Y - CanvasOffset);
+            SetOrUpdatePositionElement(startNode, ns + "endPoint", initialTransition.EndPoint.X - CanvasOffset, initialTransition.EndPoint.Y - CanvasOffset);
+            SetOrUpdatePositionElement(startNode, ns + "conditionPosition", initialTransition.ConditionPosition.X - CanvasOffset, initialTransition.ConditionPosition.Y - CanvasOffset);
 
             var ctrlPointsEl = startNode.Element(ns + "ctrlPoints");
             if (ctrlPointsEl is null)
@@ -78,7 +85,7 @@ public static class FsmXmlStateHelper
             }
             ctrlPointsEl.RemoveAll();
             foreach (var cp in initialTransition.ControlPoints)
-                ctrlPointsEl.Add(new XElement(ns + "ctrlPoint", new XAttribute("x", (int)cp.X), new XAttribute("y", (int)cp.Y)));
+                ctrlPointsEl.Add(new XElement(ns + "ctrlPoint", new XAttribute("x", (int)(cp.X - CanvasOffset)), new XAttribute("y", (int)(cp.Y - CanvasOffset))));
 
             startNode.Elements(ns + "assign").Remove();
             if (graphType == FsmGraphType.Mealy && signals is not null)
@@ -90,8 +97,8 @@ public static class FsmXmlStateHelper
         else if (initialState is not null)
         {
             EnsurePositionElement(startNode, ns + "conditionPosition", 293, 59);
-            EnsurePositionElement(startNode, ns + "position", initialState.X - 92, initialState.Y - 70);
-            EnsurePositionElement(startNode, ns + "endPoint", initialState.X - 36, initialState.Y + 50);
+            EnsurePositionElement(startNode, ns + "position", initialState.X - CanvasOffset - 92, initialState.Y - CanvasOffset - 70);
+            EnsurePositionElement(startNode, ns + "endPoint", initialState.X - CanvasOffset - 36, initialState.Y - CanvasOffset + 50);
         }
     }
 
@@ -122,12 +129,12 @@ public static class FsmXmlStateHelper
         var condPosEl = startNode.Element(ns + "conditionPosition");
         var ctrlPointsEl = startNode.Element(ns + "ctrlPoints");
 
-        var startX = position is not null && double.TryParse(position.Attribute("x")?.Value, out var sx) ? sx : targetState.X - 80;
-        var startY = position is not null && double.TryParse(position.Attribute("y")?.Value, out var sy) ? sy : targetState.Y + targetState.RenderHeight / 2.0;
-        var endX = endPointEl is not null && double.TryParse(endPointEl.Attribute("x")?.Value, out var ex) ? ex : (double?)null;
-        var endY = endPointEl is not null && double.TryParse(endPointEl.Attribute("y")?.Value, out var ey) ? ey : (double?)null;
-        var condX = condPosEl is not null && double.TryParse(condPosEl.Attribute("x")?.Value, out var cx) ? cx : (startX + (endX ?? startX)) / 2.0;
-        var condY = condPosEl is not null && double.TryParse(condPosEl.Attribute("y")?.Value, out var cy) ? cy : startY - 16;
+        var startX = position is not null && double.TryParse(position.Attribute("x")?.Value, out var sx) ? sx + CanvasOffset : targetState.X - 80;
+        var startY = position is not null && double.TryParse(position.Attribute("y")?.Value, out var sy) ? sy + CanvasOffset : targetState.Y + targetState.RenderHeight / 2.0;
+        var endX = endPointEl is not null && double.TryParse(endPointEl.Attribute("x")?.Value, out var ex) ? ex + CanvasOffset : (double?)null;
+        var endY = endPointEl is not null && double.TryParse(endPointEl.Attribute("y")?.Value, out var ey) ? ey + CanvasOffset : (double?)null;
+        var condX = condPosEl is not null && double.TryParse(condPosEl.Attribute("x")?.Value, out var cx) ? cx + CanvasOffset : (startX + (endX ?? startX)) / 2.0;
+        var condY = condPosEl is not null && double.TryParse(condPosEl.Attribute("y")?.Value, out var cy) ? cy + CanvasOffset : startY - 16;
 
         var condition = startNode.Attribute("condition")?.Value ?? string.Empty;
 
@@ -345,7 +352,7 @@ public static class FsmXmlStateHelper
 
         var x = double.TryParse(element.Attribute("x")?.Value, out var parsedX) ? parsedX : 0;
         var y = double.TryParse(element.Attribute("y")?.Value, out var parsedY) ? parsedY : 0;
-        return new TransitionPointViewModel(x, y);
+        return new TransitionPointViewModel(x + CanvasOffset, y + CanvasOffset);
     }
 
     private static void CopyPoint(TransitionPointViewModel source, TransitionPointViewModel target)
@@ -357,8 +364,8 @@ public static class FsmXmlStateHelper
     private static XElement CreatePointElement(XName elementName, TransitionPointViewModel point)
     {
         return new XElement(elementName,
-            new XAttribute("x", (int)point.X),
-            new XAttribute("y", (int)point.Y));
+            new XAttribute("x", (int)(point.X - CanvasOffset)),
+            new XAttribute("y", (int)(point.Y - CanvasOffset)));
     }
 
     public static string ReadOutputAssignments(XElement stateElement, XNamespace ns, IEnumerable<SignalDefinitionViewModel> signals)

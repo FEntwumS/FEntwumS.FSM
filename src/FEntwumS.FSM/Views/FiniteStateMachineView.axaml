@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:FEntwumS.FSM.ViewModels"
+             xmlns:paz="using:Avalonia.Controls.PanAndZoom"
              x:Class="FEntwumS.FSM.Views.FiniteStateMachineView"
              x:DataType="vm:FiniteStateMachineViewModel"
              x:Name="Root"
@@ -157,39 +158,32 @@
         </ScrollViewer>
         </Border>
 
-                <Grid Grid.Column="1"
-                            Background="#1e1e1e"
-                            ClipToBounds="True">
-                        <Grid x:Name="EditorSurface"
-                                    Background="Transparent"
-                                    Focusable="True"
-                                    PointerPressed="OnCanvasPointerPressed"
-                                    PointerMoved="OnCanvasPointerMoved"
-                                    PointerReleased="OnCanvasPointerReleased"
-                                    PointerWheelChanged="OnEditorPointerWheelChanged">
+                <paz:ZoomBorder x:Name="ZoomBorder"
+                                Grid.Column="1"
+                                Background="#1e1e1e"
+                                ClipToBounds="True"
+                                Focusable="True"
+                                PanButton="Right"
+                                EnablePan="True"
+                                EnableZoom="True"
+                                EnableConstrains="False"
+                                EnableDoubleClickZoom="False"
+                                Stretch="None"
+                                MinZoomX="0.1"
+                                MaxZoomX="5.0"
+                                MinZoomY="0.1"
+                                MaxZoomY="5.0"
+                                ZoomChanged="OnZoomChanged"
+                                DoubleTapped="OnCanvasDoubleTapped"
+                                PointerPressed="OnCanvasPointerPressed"
+                                PointerMoved="OnCanvasPointerMoved"
+                                PointerReleased="OnCanvasPointerReleased"
+                                PointerExited="OnCanvasPointerExited">
                                 <Grid x:Name="EditorContent"
-                                            RenderTransformOrigin="0,0">
-                                        <Grid.RenderTransform>
-                                            <TransformGroup>
-                                                <ScaleTransform ScaleX="1"
-                                                                ScaleY="1"/>
-                                                <TranslateTransform X="0"
-                                                                    Y="0"/>
-                                            </TransformGroup>
-                                        </Grid.RenderTransform>
-                        <Canvas Width="1600"
-                                Height="900"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Top"
-                                IsHitTestVisible="False">
-                            <Rectangle Width="1600"
-                                       Height="900"
-                                       Canvas.Left="1"
-                                       Canvas.Top="1"
-                                       Fill="Transparent"
-                                       Stroke="#FBBF24"
-                                       StrokeThickness="3"/>
-                        </Canvas>
+                                      Width="20000"
+                                      Height="20000"
+                                      HorizontalAlignment="Left"
+                                      VerticalAlignment="Top">
 
                         <!-- Initial Transitions -->
                         <ItemsControl ItemsSource="{Binding InitialTransitions}">
@@ -677,9 +671,30 @@
                     Height="0"
                     IsHitTestVisible="False"
                     ZIndex="1000"/>
-                </Grid>
+
+            <!-- Ghost state preview shown while in placement mode -->
+            <Grid x:Name="GhostState"
+                  Width="144"
+                  Height="64"
+                  HorizontalAlignment="Left"
+                  VerticalAlignment="Top"
+                  IsVisible="False"
+                  IsHitTestVisible="False"
+                  Opacity="0.55"
+                  ZIndex="1001">
+                <Ellipse Fill="#3c3c3c"
+                         Stroke="DodgerBlue"
+                         StrokeThickness="2"
+                         StrokeDashArray="6,3"/>
+                <TextBlock Text="New State"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Foreground="#bbffffff"
+                           FontSize="11"
+                           IsHitTestVisible="False"/>
             </Grid>
-        </Grid>
+                </Grid>
+                </paz:ZoomBorder>
         
     </Grid>
 </UserControl>

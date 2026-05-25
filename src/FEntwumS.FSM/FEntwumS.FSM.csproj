@@ -20,7 +20,6 @@
         </None>
     </ItemGroup>
         <ItemGroup>
-                    <PackageReference Include="Avalonia.Controls.PanAndZoom" Version="1.0.0" Private="true" />
                     <PackageReference Include="OneWare.Essentials" Version="1.0.10" Private="false" ExcludeAssets="runtime;Native" />
                     <PackageReference Include="OneWare.Settings" Version="1.0.10" Private="false" ExcludeAssets="runtime;Native" />
                     <PackageReference Include="Prism.Core" Version="8.1.97" Private="true" ExcludeAssets="runtime;Native" />
