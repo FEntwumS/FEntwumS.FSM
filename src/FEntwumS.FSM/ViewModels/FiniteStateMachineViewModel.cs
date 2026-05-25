@@ -17,6 +17,7 @@ using OneWare.Essentials.Services;
 using OneWare.Essentials.Models;
 using OneWare.Essentials.Enums;
 using OneWare.Essentials.Extensions;
+using FEntwumS.FSM.Services;
 
 namespace FEntwumS.FSM.ViewModels;
 
@@ -422,10 +423,31 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     public override void InitializeContent()
     {
         // Guard: if _mainDockService is null, this instance was created by the dock serializer
-        // during layout restore (bypassing our constructor). Skip initialization entirely —
-        // it will be re-created properly when the user opens "View FSM-Graph" again.
+        // during layout restore (bypassing our constructor).
+        // FullPath is restored via [DataMember] before this method is called, so we can use
+        // ContainerLocator to close the stub and reopen the file properly.
         if (_mainDockService == null)
+        {
+            if (string.IsNullOrWhiteSpace(FullPath))
+                return;
+
+            var pathToReopen = FullPath;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                try
+                {
+                    var mainDock = (IMainDockService)ContainerLocator.Container.Resolve(typeof(IMainDockService));
+                    var fsmService = (IFiniteStateMachineService)ContainerLocator.Container.Resolve(typeof(IFiniteStateMachineService));
+                    mainDock.CloseDockable(this);
+                    _ = fsmService.ShowFiniteStateMachineByPathAsync(pathToReopen);
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"[FSM] Layout restore failed: {ex.Message}");
+                }
+            });
             return;
+        }
 
         base.InitializeContent();
 
