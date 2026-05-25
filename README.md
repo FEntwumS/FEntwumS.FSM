@@ -7,42 +7,73 @@
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](License.md)
   [![OneWare Studio](https://img.shields.io/badge/OneWare%20Studio-%3E%3D1.0.10-green)](https://one-ware.com)
-  [![Version](https://img.shields.io/badge/version-0.1-orange)](https://github.com/FEntwumS/FEntwumS.FSM/releases)
+  [![Version](https://img.shields.io/badge/version-0.2-orange)](https://github.com/FEntwumS/FEntwumS.FSM/releases)
 </div>
 
 ---
 
 ## Overview
 
-FSM Editor is a OneWare Studio extension that lets you design, visualize, and export Finite State Machines directly inside your IDE. Draw states and transitions on a graphical canvas, define input/output signals, and generate synthesizable **VHDL** or portable **C code** from your design with a single click.
+FSM Editor is a OneWare Studio extension that lets you design, visualize, and export Finite State Machines directly inside your IDE. Draw states and transitions on a graphical canvas, define input/output signals and internal variables, and generate synthesizable **VHDL** or portable **C code** from your design with a single click.
 
 ---
 
 ## Features
 
-### Visual Editor
-- **Drag-and-drop canvas** — create and reposition states freely
-- **Interactive transitions** — drag from a state's hover connector to another state to create a transition; supports self-transitions and parallel transitions
+### Visual Canvas
+- **Drag-and-drop states** — create and freely reposition states on a 20 000 × 20 000 unit canvas
+- **Interactive transitions** — hover over a state until the connector dot appears, then drag to another state; supports self-transitions and parallel transitions
 - **Inline editing** — double-click any state or transition label to rename it or set conditions/output assignments directly on the canvas
-- **Marquee selection** — click and drag on empty canvas to box-select multiple states at once
-- **Zoom & pan** — scroll wheel to zoom, or enable Cursor Mode to pan the canvas
+- **Marquee selection** — click-drag on empty canvas to box-select multiple states at once
+- **Zoom & pan** — scroll wheel to zoom (10 % – 500 %); right-click-drag to pan; Zoom In / Zoom Out buttons in the sidebar; live zoom percentage indicator
+- **Grid background** — optional dot/line grid overlay toggled with the **Grid** button
+- **Snap-to-grid** — states snap to a 50-unit grid when moving, toggled with the **Snap** button
+- **Canvas label** — a viewport-fixed overlay in the top-left corner shows the current filename and graph type at all times
 
 ### State Machine Types
 | Type | Description |
 |------|-------------|
-| **Moore** | Outputs are associated with states |
-| **Mealy** | Outputs are associated with transitions |
+| **Moore** | Outputs are defined on states |
+| **Mealy** | Outputs are defined on transitions |
 
-Switch between types at any time from the Graph Type selector in the sidebar.
+Switch between types at any time from the **Graph Type** selector in the sidebar.
 
 ### Signal Definitions
-Define your FSM's interface with typed signals:
-- Direction: `in` / `out`
-- Types: `bit` (single bit) or `bit_n` (configurable width)
-- Signals are used to auto-complete and validate output assignment expressions
+Define your FSM's port interface in the collapsible **Signals** panel. A count badge shows how many signals are defined.
+
+| Field | Options | Notes |
+|-------|---------|-------|
+| **Name** | any identifier | used in output expressions |
+| **Dir** | `IN` / `OUT` / `INOUT` | port direction |
+| **Type** | `BIT` / `BIT_N` / `SIGNED` / `UNSIGNED` | see table below |
+| **Size** | integer | visible for `BIT_N`, `SIGNED`, `UNSIGNED` |
+
+**Type → XML mapping**
+
+| UI type | Size | XML type | XML size attr |
+|---------|------|----------|---------------|
+| `BIT` | — | `bit` | — |
+| `BIT_N` | 4 | `nibble` | — |
+| `BIT_N` | 8 | `byte` | — |
+| `BIT_N` | other | `vector` | ✓ |
+| `SIGNED` | any (default 16) | `integer` | ✓ |
+| `UNSIGNED` | any (default 16) | `vector` | ✓ |
+
+Signals are used to auto-complete and validate output assignment expressions on states and transitions.
+
+### Variable Definitions
+Define internal FSM variables in the collapsible **Variables** panel (no direction — variables are internal only). A count badge shows how many variables are defined.
+
+| Field | Options | Notes |
+|-------|---------|-------|
+| **Name** | any identifier | |
+| **Type** | `BIT` / `BIT_N` / `SIGNED` / `UNSIGNED` | same mapping as signals |
+| **Size** | integer | visible for `BIT_N`, `SIGNED`, `UNSIGNED` |
+
+Variables are persisted under a `<variables>` element in the XML file.
 
 ### State Properties
-- Mark any state as the **initial state** (entry point)
+- Mark any state as the **initial state** (entry point of the FSM)
 - Mark states as **final states**
 - Set **output assignments** (Moore) directly on the state node
 
@@ -57,11 +88,26 @@ Use the **Backend** panel in the sidebar to:
 - **Generate C** — produces a portable C implementation
 - **Verify** — runs backend verification checks on the current FSM
 
-### File Format
-FSMs are saved as [SCXML](https://www.w3.org/TR/scxml/)-compatible XML files (`.xml` / `.scxml`). Right-click any `.xml` or `.scxml` file in the Project Explorer and choose **View FSM-Graph** to open it in the editor.
-
 ### Undo / Redo
-Full undo/redo history for all editing operations.
+Full multi-level undo/redo history covers all editing operations: adding/removing/moving states, editing transitions, changing signals and variables, switching graph type.
+
+### File Format
+FSMs are stored as `.fsmxml` files (XML-based, SCXML-compatible).  
+Double-click any `.fsmxml` file in the Project Explorer to open it in the editor.
+
+The XML structure:
+```xml
+<scxml xmlns="http://www.w3.org/2005/07/scxml" ...>
+  <signals>
+    <signal name="clk" dir="in" type="bit"/>
+    <signal name="count" dir="out" type="vector" size="8"/>
+  </signals>
+  <variables>
+    <var name="counter" type="integer" size="16"/>
+  </variables>
+  <states> ... </states>
+</scxml>
+```
 
 ---
 
@@ -77,6 +123,21 @@ Full undo/redo history for all editing operations.
 | `Double-click` state | Edit state name / output assignments |
 | `Double-click` transition label | Edit transition condition |
 | `Scroll wheel` | Zoom in / out |
+| `Right-click drag` | Pan the canvas |
+
+---
+
+## Sidebar Reference
+
+| Section | Controls |
+|---------|----------|
+| **Add New State** | Places a new state node on the canvas |
+| **Zoom In / Zoom Out** | ± zoom buttons + live % display |
+| **Grid / Snap** | Toggle grid background and snap-to-grid |
+| **Backend** | Generate VHDL, Generate C, Verify |
+| **Signals** | Collapsible list with count badge; Add / Delete signals |
+| **Variables** | Collapsible list with count badge; Add / Delete variables |
+| **Graph Type** | Switch between Moore and Mealy |
 
 ---
 
@@ -98,16 +159,17 @@ Download the latest release from [GitHub Releases](https://github.com/FEntwumS/F
 Click the **FSM Editor** toolbar button in the OneWare Studio toolbar to open a blank canvas.
 
 ### Open an Existing FSM
-Right-click any `.xml` or `.scxml` file in the Project Explorer and select **View FSM-Graph**.
+Double-click any `.fsmxml` file in the Project Explorer to open it in the editor.
 
 ### Build Your First State Machine
-1. Click **Add New State** in the sidebar to place your first state (it becomes the initial state automatically)
+1. Click **Add New State** in the sidebar — the first state becomes the initial state automatically
 2. Add more states as needed
 3. Hover over a state until the connector dot appears, then drag to another state to create a transition
 4. Double-click transition labels to set conditions
-5. Define signals in the **Signals** section of the sidebar
-6. Set output assignments on states (Moore) or transitions (Mealy)
-7. Press **Ctrl+S** or click **Save** to save as an XML file
+5. Define signals in the **Signals** section of the sidebar (Name / Dir / Type / Size)
+6. Define any internal variables in the **Variables** section (Name / Type / Size)
+7. Set output assignments on states (Moore) or transitions (Mealy)
+8. Press **Ctrl+S** or click **Save** to save as an XML file
 
 ### Generate Code
 1. Click **VHDL** or **C** in the **Backend** section of the sidebar
@@ -146,20 +208,23 @@ Right-click any `.xml` or `.scxml` file in the Project Explorer and select **Vie
 
 ```
 src/FEntwumS.FSM/
-├── FEntwumSFSMModule.cs       # Extension entry point & service registration
+├── FEntwumSFSMModule.cs                  # Extension entry point & service registration
 ├── Services/
-│   └── FiniteStateMachineService.cs  # Opens/creates FSM editor documents
+│   └── FiniteStateMachineService.cs      # Opens/creates FSM editor documents
 ├── ViewModels/
-│   ├── FiniteStateMachineViewModel.cs # Main editor logic, undo/redo, XML persistence
-│   ├── StateItemViewModel.cs          # Individual state node
-│   ├── TransitionViewModel.cs         # Transition arc & geometry
-│   ├── SignalDefinitionViewModel.cs   # Signal interface definition
-│   ├── FsmXmlStateHelper.cs           # SCXML read/write helpers
-│   ├── FsmToolbarExtensionViewModel.cs# Toolbar button
-│   └── FsmGraphType.cs                # Moore / Mealy enum
+│   ├── FiniteStateMachineViewModel.cs    # Main editor logic, undo/redo, XML persistence
+│   ├── StateItemViewModel.cs             # Individual state node
+│   ├── TransitionViewModel.cs            # Transition arc & routing geometry
+│   ├── SignalDefinitionViewModel.cs      # Port signal definition (name/dir/type/size)
+│   ├── VariableDefinitionViewModel.cs    # Internal variable definition (name/type/size)
+│   ├── FsmXmlStateHelper.cs              # SCXML read/write helpers
+│   ├── FsmToolbarExtensionViewModel.cs   # Toolbar button
+│   └── FsmGraphType.cs                   # Moore / Mealy enum
 └── Views/
-    ├── FiniteStateMachineView.axaml    # Canvas UI
-    └── FsmToolbarExtensionView.axaml   # Toolbar button UI
+    ├── FiniteStateMachineView.axaml       # Main canvas + sidebar UI
+    ├── FsmChoiceDialog.axaml              # Graph type selection dialog
+    ├── FsmLoadDialog.axaml                # File load dialog
+    └── FsmToolbarExtensionView.axaml      # Toolbar button UI
 ```
 
 ---

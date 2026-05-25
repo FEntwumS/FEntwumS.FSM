@@ -72,7 +72,7 @@ public class FEntwumSFSMModule : IOneWareModule
             return true;
         }, ".fsmxml");
 
-        // "View FSM-Graph" context menu entry for .xml, .scxml, and .fsmxml files.
+        // "View XML" context menu entry for .fsmxml files.
         projectExplorerService.RegisterConstructContextMenu((selection, menuItems) =>
         {
             var selectedEntry = selection
@@ -90,19 +90,6 @@ public class FEntwumSFSMModule : IOneWareModule
                 var extension = string.IsNullOrWhiteSpace(file.Extension)
                     ? Path.GetExtension(file.FullPath)
                     : file.Extension;
-
-                if (string.Equals(extension, ".xml", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(extension, ".scxml", StringComparison.OrdinalIgnoreCase))
-                {
-                    menuItems.Add(new MenuItemModel("FEntwumS.FSM.OpenFiniteStateMachine")
-                    {
-                        Header = "View FSM-Graph",
-                        IsEnabled = true,
-                        Priority = 100,
-                        Command = new AsyncRelayCommand(async () =>
-                            await fsmService.ShowFiniteStateMachineAsync(file))
-                    });
-                }
 
                 if (string.Equals(extension, ".fsmxml", StringComparison.OrdinalIgnoreCase))
                 {
