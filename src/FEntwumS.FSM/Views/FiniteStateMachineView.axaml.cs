@@ -30,6 +30,7 @@ public partial class FiniteStateMachineView : UserControl
     private StateItemViewModel? _movingState;
     private double _movingStateStartX;
     private double _movingStateStartY;
+    private Point _dragStartEditorPosition;
     private FiniteStateMachineViewModel.UndoSnapshot? _stateEditUndoSnapshot;
     private StateItemViewModel? _editingState;
     private string? _editingStateOriginalId;
@@ -122,6 +123,7 @@ public partial class FiniteStateMachineView : UserControl
             }
 
             _isDragging = true;
+            _dragStartEditorPosition = currentPosition;
             _lastPointerPosition = currentPosition;
 
             // Capture the pointer so movement is tracked even if the mouse leaves the circle
@@ -146,13 +148,22 @@ public partial class FiniteStateMachineView : UserControl
         if (_isDragging && sender is Control { DataContext: StateItemViewModel vm } control)
         {
             var currentPosition = GetEditorPosition(e);
-            var delta = currentPosition - _lastPointerPosition;
 
-            // Update the ViewModel properties
-            vm.X += delta.X;
-            vm.Y += delta.Y;
+            var rawX = _movingStateStartX + (currentPosition.X - _dragStartEditorPosition.X);
+            var rawY = _movingStateStartY + (currentPosition.Y - _dragStartEditorPosition.Y);
 
-            _lastPointerPosition = currentPosition;
+            if (DataContext is FiniteStateMachineViewModel dvm && dvm.SnapToGrid)
+            {
+                var grid = FiniteStateMachineViewModel.GridSize;
+                vm.X = Math.Round(rawX / grid) * grid;
+                vm.Y = Math.Round(rawY / grid) * grid;
+            }
+            else
+            {
+                vm.X = rawX;
+                vm.Y = rawY;
+            }
+
             e.Handled = true;
             return;
         }
@@ -692,8 +703,16 @@ public partial class FiniteStateMachineView : UserControl
         if (DataContext is FiniteStateMachineViewModel placingVm && placingVm.IsPlacingState)
         {
             var pos = GetEditorPosition(e);
+            var ghostX = pos.X - 72;
+            var ghostY = pos.Y - 32;
+            if (placingVm.SnapToGrid)
+            {
+                var grid = FiniteStateMachineViewModel.GridSize;
+                ghostX = Math.Round(ghostX / grid) * grid;
+                ghostY = Math.Round(ghostY / grid) * grid;
+            }
             GhostState.IsVisible = true;
-            GhostState.Margin = new Thickness(pos.X - 72, pos.Y - 32, 0, 0);
+            GhostState.Margin = new Thickness(ghostX, ghostY, 0, 0);
             if (ZoomBorder is not null)
                 ZoomBorder.Cursor = new Cursor(StandardCursorType.Cross);
             e.Handled = true;
@@ -734,7 +753,15 @@ public partial class FiniteStateMachineView : UserControl
             if (placementPoint.Properties.IsLeftButtonPressed)
             {
                 var pos = GetEditorPosition(e);
-                mainVm.CommitPlaceState(pos.X - 72, pos.Y - 32);
+                var placeX = pos.X - 72;
+                var placeY = pos.Y - 32;
+                if (mainVm.SnapToGrid)
+                {
+                    var grid = FiniteStateMachineViewModel.GridSize;
+                    placeX = Math.Round(placeX / grid) * grid;
+                    placeY = Math.Round(placeY / grid) * grid;
+                }
+                mainVm.CommitPlaceState(placeX, placeY);
                 GhostState.IsVisible = false;
                 if (ZoomBorder is not null) ZoomBorder.Cursor = Cursor.Default;
                 e.Handled = true;

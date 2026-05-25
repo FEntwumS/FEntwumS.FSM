@@ -55,6 +55,10 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
     [ObservableProperty] private bool _isPlacingState;
 
+    [ObservableProperty] private bool _showGrid = true;
+    [ObservableProperty] private bool _snapToGrid = true;
+    public const double GridSize = 50.0;
+
     private StateItemViewModel? _pendingTransitionSource;
     private ConnectorSide _pendingTransitionSourceSide;
     private readonly Stack<UndoSnapshot> _undoStack = new();

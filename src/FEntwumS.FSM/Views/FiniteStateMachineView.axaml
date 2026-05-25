@@ -41,6 +41,18 @@
         </Border>
         </Grid>
 
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+            <ToggleButton Content="Grid"
+                          IsChecked="{Binding ShowGrid, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch"
+                          ToolTip.Tip="Show / hide background grid"/>
+            <ToggleButton Grid.Column="1"
+                          Content="Snap"
+                          IsChecked="{Binding SnapToGrid, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch"
+                          ToolTip.Tip="Snap states to grid when moving"/>
+        </Grid>
+
     <TextBlock Text="{Binding TransitionHint}"
                TextWrapping="Wrap"
                Foreground="#d0d0d0"/>
@@ -184,6 +196,27 @@
                                       Height="20000"
                                       HorizontalAlignment="Left"
                                       VerticalAlignment="Top">
+
+                        <!-- Dot grid background -->
+                        <Rectangle Width="20000" Height="20000"
+                                   IsHitTestVisible="False"
+                                   IsVisible="{Binding ShowGrid}">
+                            <Rectangle.Fill>
+                                <DrawingBrush TileMode="Tile"
+                                              DestinationRect="0,0,50,50">
+                                    <DrawingBrush.Drawing>
+                                        <GeometryDrawing>
+                                            <GeometryDrawing.Geometry>
+                                                <RectangleGeometry Rect="0,0,50,50"/>
+                                            </GeometryDrawing.Geometry>
+                                            <GeometryDrawing.Pen>
+                                                <Pen Brush="#22ffffff" Thickness="0.5"/>
+                                            </GeometryDrawing.Pen>
+                                        </GeometryDrawing>
+                                    </DrawingBrush.Drawing>
+                                </DrawingBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
 
                         <!-- Initial Transitions -->
                         <ItemsControl ItemsSource="{Binding InitialTransitions}">
