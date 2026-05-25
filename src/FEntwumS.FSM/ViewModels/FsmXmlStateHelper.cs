@@ -472,29 +472,39 @@ public static class FsmXmlStateHelper
                 string uiType, uiSize;
                 if (string.Equals(xmlType, "nibble", StringComparison.OrdinalIgnoreCase))
                 {
-                    uiType = "bit_n";
+                    uiType = "BIT_N";
                     uiSize = "4";
                 }
                 else if (string.Equals(xmlType, "byte", StringComparison.OrdinalIgnoreCase))
                 {
-                    uiType = "bit_n";
+                    uiType = "BIT_N";
                     uiSize = "8";
                 }
                 else if (string.Equals(xmlType, "vector", StringComparison.OrdinalIgnoreCase))
                 {
-                    uiType = "bit_n";
+                    uiType = "BIT_N";
                     uiSize = xmlSize; // preserve whatever size was stored
+                }
+                else if (string.Equals(xmlType, "integer", StringComparison.OrdinalIgnoreCase))
+                {
+                    uiType = "SIGNED";
+                    uiSize = xmlSize;
+                }
+                else if (string.Equals(xmlType, "bit", StringComparison.OrdinalIgnoreCase))
+                {
+                    uiType = "BIT";
+                    uiSize = string.Empty;
                 }
                 else
                 {
-                    uiType = xmlType; // e.g. "bit"
+                    uiType = xmlType;
                     uiSize = xmlSize;
                 }
 
                 return new SignalDefinitionViewModel
                 {
                     Name = signalElement.Attribute("name")?.Value?.Trim() ?? string.Empty,
-                    Direction = signalElement.Attribute("dir")?.Value?.Trim() ?? string.Empty,
+                    Direction = (signalElement.Attribute("dir")?.Value?.Trim() ?? string.Empty).ToUpperInvariant(),
                     Type = uiType,
                     Size = uiSize
                 };
@@ -529,11 +539,11 @@ public static class FsmXmlStateHelper
                 new XAttribute("name", signal.Name.Trim()));
 
             if (!string.IsNullOrWhiteSpace(signal.Direction))
-                signalElement.SetAttributeValue("dir", signal.Direction.Trim());
+                signalElement.SetAttributeValue("dir", signal.Direction.Trim().ToLowerInvariant());
 
             if (!string.IsNullOrWhiteSpace(signal.Type))
             {
-                if (string.Equals(signal.Type, "bit_n", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(signal.Type, "BIT_N", StringComparison.OrdinalIgnoreCase))
                 {
                     // Map bit_n to the correct backend XML type based on size.
                     // nibble = 4 bits, byte = 8 bits, vector = everything else (needs a size attribute).
@@ -554,14 +564,135 @@ public static class FsmXmlStateHelper
                             signalElement.SetAttributeValue("size", signal.Size.Trim());
                     }
                 }
+                else if (string.Equals(signal.Type, "SIGNED", StringComparison.OrdinalIgnoreCase))
+                {
+                    signalElement.SetAttributeValue("type", "integer");
+                    if (!string.IsNullOrWhiteSpace(signal.Size))
+                        signalElement.SetAttributeValue("size", signal.Size.Trim());
+                }
+                else if (string.Equals(signal.Type, "UNSIGNED", StringComparison.OrdinalIgnoreCase))
+                {
+                    signalElement.SetAttributeValue("type", "vector");
+                    if (!string.IsNullOrWhiteSpace(signal.Size))
+                        signalElement.SetAttributeValue("size", signal.Size.Trim());
+                }
                 else
                 {
-                    signalElement.SetAttributeValue("type", signal.Type.Trim());
-                    // bit type has fixed size 1 — no size attribute needed
+                    signalElement.SetAttributeValue("type", signal.Type.Trim().ToLowerInvariant());
+                    // BIT type has fixed size 1 — no size attribute needed
                 }
             }
 
             signalsElement.Add(signalElement);
+        }
+    }
+
+    public static IReadOnlyList<VariableDefinitionViewModel> ReadVariables(XDocument? document, XNamespace ns)
+    {
+        if (document?.Root is null)
+            return Array.Empty<VariableDefinitionViewModel>();
+
+        return document.Root
+            .Element(ns + "variables")?
+            .Elements(ns + "var")
+            .Select(varElement =>
+            {
+                var xmlType = varElement.Attribute("type")?.Value?.Trim() ?? string.Empty;
+                var xmlSize = varElement.Attribute("size")?.Value?.Trim() ?? string.Empty;
+
+                // Map XML types to UI types
+                var uiType = xmlType.ToLowerInvariant() switch
+                {
+                    "integer" => "SIGNED",
+                    "vector"  => "UNSIGNED",
+                    "nibble"  => "BIT_N",
+                    "byte"    => "BIT_N",
+                    "bit"     => "BIT",
+                    _         => xmlType
+                };
+
+                // Size depends on type
+                var uiSize = xmlType.ToLowerInvariant() switch
+                {
+                    "nibble" => "4",
+                    "byte"   => "8",
+                    "bit"    => string.Empty,
+                    _        => xmlSize
+                };
+
+                return new VariableDefinitionViewModel
+                {
+                    Name = varElement.Attribute("name")?.Value?.Trim() ?? string.Empty,
+                    Type = uiType,
+                    Size = uiSize
+                };
+            })
+            .Where(v => !string.IsNullOrWhiteSpace(v.Name))
+            .ToList()
+            ?? new List<VariableDefinitionViewModel>();
+    }
+
+    public static void SyncVariablesMetadata(XDocument document, XNamespace ns, IEnumerable<VariableDefinitionViewModel> variables)
+    {
+        if (document.Root is null)
+            return;
+
+        var variablesElement = document.Root.Element(ns + "variables");
+        if (variablesElement is null)
+        {
+            variablesElement = new XElement(ns + "variables");
+            var statesElement = document.Root.Element(ns + "states");
+            if (statesElement is not null)
+                statesElement.AddBeforeSelf(variablesElement);
+            else
+                document.Root.Add(variablesElement);
+        }
+
+        variablesElement.RemoveAll();
+
+        foreach (var variable in variables.Where(v => !string.IsNullOrWhiteSpace(v.Name)))
+        {
+            var varElement = new XElement(ns + "var",
+                new XAttribute("name", variable.Name.Trim()));
+
+            if (string.Equals(variable.Type, "BIT_N", StringComparison.OrdinalIgnoreCase))
+            {
+                // nibble = 4 bits, byte = 8 bits, vector = everything else
+                if (variable.Size == "4")
+                {
+                    varElement.SetAttributeValue("type", "nibble");
+                }
+                else if (variable.Size == "8")
+                {
+                    varElement.SetAttributeValue("type", "byte");
+                }
+                else
+                {
+                    varElement.SetAttributeValue("type", "vector");
+                    if (!string.IsNullOrWhiteSpace(variable.Size))
+                        varElement.SetAttributeValue("size", variable.Size.Trim());
+                }
+            }
+            else
+            {
+                var xmlType = variable.Type switch
+                {
+                    "SIGNED"   => "integer",
+                    "UNSIGNED" => "vector",
+                    "bit"      => "bit",
+                    _          => variable.Type.ToLowerInvariant()
+                };
+                varElement.SetAttributeValue("type", xmlType);
+
+                if ((string.Equals(variable.Type, "SIGNED", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(variable.Type, "UNSIGNED", StringComparison.OrdinalIgnoreCase))
+                    && !string.IsNullOrWhiteSpace(variable.Size))
+                {
+                    varElement.SetAttributeValue("size", variable.Size.Trim());
+                }
+            }
+
+            variablesElement.Add(varElement);
         }
     }
 

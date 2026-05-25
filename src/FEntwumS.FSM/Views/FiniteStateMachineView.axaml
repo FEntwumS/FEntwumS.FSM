@@ -53,10 +53,6 @@
                           ToolTip.Tip="Snap states to grid when moving"/>
         </Grid>
 
-    <TextBlock Text="{Binding TransitionHint}"
-               TextWrapping="Wrap"
-               Foreground="#d0d0d0"/>
-
     <Separator Margin="0,4" Background="#3e3e42"/>
     <TextBlock Text="BACKEND"
                FontWeight="Bold"
@@ -88,17 +84,43 @@
             CornerRadius="8"
             Padding="10">
         <StackPanel Spacing="8">
-            <Grid ColumnDefinitions="*,Auto"
-                  ColumnSpacing="8">
-                <TextBlock Text="Signals"
+
+            <!-- Signals header: toggle button + count badge + Add button -->
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto"
+                  ColumnSpacing="6">
+                <Button Grid.Column="0"
+                        Command="{Binding ToggleSignalsCommand}"
+                        Padding="4,2"
+                        Background="Transparent"
+                        BorderThickness="0">
+                    <Panel>
+                        <TextBlock Text="▼" FontSize="10" IsVisible="{Binding IsSignalsExpanded}"/>
+                        <TextBlock Text="▶" FontSize="10" IsVisible="{Binding !IsSignalsExpanded}"/>
+                    </Panel>
+                </Button>
+                <TextBlock Grid.Column="1"
+                           Text="Signals"
                            FontWeight="Bold"
                            VerticalAlignment="Center"/>
-                <Button Grid.Column="1"
+                <Border Grid.Column="2"
+                        Background="#3c3f3f"
+                        CornerRadius="8"
+                        Padding="5,1"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Margin="4,0,0,0">
+                    <TextBlock Text="{Binding Signals.Count}"
+                               FontSize="11"
+                               Foreground="#c0c0c0"/>
+                </Border>
+                <Button Grid.Column="3"
                         Content="Add"
                         Command="{Binding AddSignalCommand}"/>
             </Grid>
 
-            <ItemsControl ItemsSource="{Binding Signals}">
+            <!-- Collapsible signal list -->
+            <ItemsControl ItemsSource="{Binding Signals}"
+                          IsVisible="{Binding IsSignalsExpanded}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:SignalDefinitionViewModel">
                         <Border Background="#252526"
@@ -127,9 +149,9 @@
                                               HorizontalAlignment="Stretch"
                                               GotFocus="OnSignalEditorGotFocus"
                                               LostFocus="OnSignalEditorLostFocus">
-                                        <x:String>in</x:String>
-                                        <x:String>out</x:String>
-                                        <x:String>inout</x:String>
+                                        <x:String>IN</x:String>
+                                        <x:String>OUT</x:String>
+                                        <x:String>INOUT</x:String>
                                     </ComboBox>
                                 </Grid>
                                 <Grid ColumnDefinitions="Auto,*"
@@ -141,13 +163,15 @@
                                               HorizontalAlignment="Stretch"
                                               GotFocus="OnSignalEditorGotFocus"
                                               LostFocus="OnSignalEditorLostFocus">
-                                        <x:String>bit</x:String>
-                                        <x:String>bit_n</x:String>
+                                        <x:String>BIT</x:String>
+                                        <x:String>BIT_N</x:String>
+                                        <x:String>SIGNED</x:String>
+                                        <x:String>UNSIGNED</x:String>
                                     </ComboBox>
                                 </Grid>
                                 <Grid ColumnDefinitions="Auto,*"
                                       ColumnSpacing="8"
-                                      IsVisible="{Binding IsBitN}">
+                                      IsVisible="{Binding HasSize}">
                                     <TextBlock Text="Size"
                                                VerticalAlignment="Center"/>
                                     <TextBox Grid.Column="1"
@@ -164,14 +188,72 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+
+        </StackPanel>
+    </Border>
+
+    <!-- Variables section -->
+    <Border Background="#1f1f21"
+            BorderBrush="#3e3e42"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="10">
+        <StackPanel Spacing="8">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="6">
+                <Button Grid.Column="0" Command="{Binding ToggleVariablesCommand}"
+                        Padding="4,2" Background="Transparent" BorderThickness="0">
+                    <Panel>
+                        <TextBlock Text="▼" FontSize="10" IsVisible="{Binding IsVariablesExpanded}"/>
+                        <TextBlock Text="▶" FontSize="10" IsVisible="{Binding !IsVariablesExpanded}"/>
+                    </Panel>
+                </Button>
+                <TextBlock Grid.Column="1" Text="Variables" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Border Grid.Column="2" Background="#3c3f3f" CornerRadius="8" Padding="5,1"
+                        HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,0,0">
+                    <TextBlock Text="{Binding Variables.Count}" FontSize="11" Foreground="#c0c0c0"/>
+                </Border>
+                <Button Grid.Column="3" Content="Add" Command="{Binding AddVariableCommand}"/>
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Variables}" IsVisible="{Binding IsVariablesExpanded}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:VariableDefinitionViewModel">
+                        <Border Background="#252526" BorderBrush="#3e3e42" BorderThickness="1"
+                                CornerRadius="6" Padding="8" Margin="0,0,0,6">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                    <TextBlock Text="Name" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="1" Text="{Binding Name, Mode=TwoWay}"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                    <TextBlock Text="Type" VerticalAlignment="Center"/>
+                                    <ComboBox Grid.Column="1" SelectedItem="{Binding Type, Mode=TwoWay}"
+                                              HorizontalAlignment="Stretch">
+                                        <x:String>BIT</x:String>
+                                        <x:String>BIT_N</x:String>
+                                        <x:String>SIGNED</x:String>
+                                        <x:String>UNSIGNED</x:String>
+                                    </ComboBox>
+                                </Grid>
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"
+                                      IsVisible="{Binding HasSize}">
+                                    <TextBlock Text="Size" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Column="1" Text="{Binding Size, Mode=TwoWay}"/>
+                                </Grid>
+                                <Button HorizontalAlignment="Right" Content="Delete"
+                                        Click="OnDeleteVariableClicked"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </StackPanel>
     </Border>
 </StackPanel>
         </ScrollViewer>
         </Border>
 
+                <Grid Grid.Column="1">
                 <paz:ZoomBorder x:Name="ZoomBorder"
-                                Grid.Column="1"
                                 Background="#1e1e1e"
                                 ClipToBounds="True"
                                 Focusable="True"
@@ -728,6 +810,19 @@
             </Grid>
                 </Grid>
                 </paz:ZoomBorder>
+
+                <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Margin="12,12,0,0" IsHitTestVisible="False" Spacing="1"
+                            Opacity="0.7">
+                    <TextBlock Text="{Binding Title}"
+                               Foreground="White"
+                               FontWeight="SemiBold"
+                               FontSize="13"/>
+                    <TextBlock Text="{Binding GraphType}"
+                               Foreground="#a0a0a0"
+                               FontSize="11"/>
+                </StackPanel>
+                </Grid>
         
     </Grid>
 </UserControl>

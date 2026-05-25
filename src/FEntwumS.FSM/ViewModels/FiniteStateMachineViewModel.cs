@@ -43,6 +43,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
     public ObservableCollection<StateItemViewModel> States { get; } = new();
     public ObservableCollection<SignalDefinitionViewModel> Signals { get; } = new();
+    public ObservableCollection<VariableDefinitionViewModel> Variables { get; } = new();
     public ObservableCollection<TransitionViewModel> Transitions { get; } = new();
     public ObservableCollection<TransitionViewModel> InitialTransitions { get; } = new();
     public ObservableCollection<TransitionViewModel> DraftTransitions { get; } = new();
@@ -59,6 +60,16 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     [ObservableProperty] private bool _snapToGrid = true;
     public const double GridSize = 50.0;
 
+    [ObservableProperty] private bool _isSignalsExpanded = true;
+
+    [RelayCommand]
+    private void ToggleSignals() => IsSignalsExpanded = !IsSignalsExpanded;
+
+    [ObservableProperty] private bool _isVariablesExpanded = true;
+
+    [RelayCommand]
+    private void ToggleVariables() => IsVariablesExpanded = !IsVariablesExpanded;
+
     private StateItemViewModel? _pendingTransitionSource;
     private ConnectorSide _pendingTransitionSourceSide;
     private readonly Stack<UndoSnapshot> _undoStack = new();
@@ -68,6 +79,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
     public sealed record PointSnapshot(double X, double Y);
     public sealed record SignalSnapshot(string Name, string Direction, string Type, string Size);
+    public sealed record VariableSnapshot(string Name, string Type, string Size);
 
     public sealed record StateSnapshot(string Id, double X, double Y, double Width, double Height, bool IsInitialState, bool IsFinalState, string OutputAssignments);
 
@@ -97,7 +109,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         PointSnapshot ConditionPosition,
         IReadOnlyList<PointSnapshot> ControlPoints);
 
-    public sealed record UndoSnapshot(FsmGraphType GraphType, IReadOnlyList<SignalSnapshot> Signals, IReadOnlyList<StateSnapshot> States, IReadOnlyList<TransitionSnapshot> Transitions, IReadOnlyList<InitialTransitionSnapshot> InitialTransitions);
+    public sealed record UndoSnapshot(FsmGraphType GraphType, IReadOnlyList<SignalSnapshot> Signals, IReadOnlyList<VariableSnapshot> Variables, IReadOnlyList<StateSnapshot> States, IReadOnlyList<TransitionSnapshot> Transitions, IReadOnlyList<InitialTransitionSnapshot> InitialTransitions);
 
     public bool IsMooreGraph => GraphType == FsmGraphType.Moore;
 
@@ -243,6 +255,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     {
         FsmXmlStateHelper.ApplyGraphType(doc, GraphType);
         FsmXmlStateHelper.SyncSignalsMetadata(doc, ns, Signals);
+        FsmXmlStateHelper.SyncVariablesMetadata(doc, ns, Variables);
         FsmXmlStateHelper.SyncFinalStatesMetadata(doc, ns, States);
 
         var statesContainer = doc.Descendants(ns + "states").FirstOrDefault();
@@ -309,6 +322,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     public void LoadFromFile(string path)
     {
         Signals.Clear();
+        Variables.Clear();
         States.Clear();
         Transitions.Clear();
         InitialTransitions.Clear();
@@ -334,6 +348,9 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
 
             foreach (var signal in FsmXmlStateHelper.ReadSignals(_originalDocument, _ns))
                 Signals.Add(signal);
+
+            foreach (var variable in FsmXmlStateHelper.ReadVariables(_originalDocument, _ns))
+                Variables.Add(variable);
 
             GraphType = FsmXmlStateHelper.ReadGraphType(_originalDocument, _ns);
 
@@ -544,8 +561,8 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         Signals.Add(new SignalDefinitionViewModel
         {
             Name = $"SIG_{Signals.Count + 1}",
-            Direction = "in",
-            Type = "bit",
+            Direction = "IN",
+            Type = "BIT",
             Size = string.Empty
         });
     }
@@ -558,6 +575,27 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         PushUndoSnapshot(CreateUndoSnapshot());
         Signals.Remove(signal);
         NormalizeStateOutputs();
+    }
+
+    [RelayCommand]
+    private void AddVariable()
+    {
+        PushUndoSnapshot(CreateUndoSnapshot());
+        Variables.Add(new VariableDefinitionViewModel
+        {
+            Name = $"VAR_{Variables.Count + 1}",
+            Type = "SIGNED",
+            Size = "16"
+        });
+    }
+
+    public void DeleteVariable(VariableDefinitionViewModel variable)
+    {
+        if (!Variables.Contains(variable))
+            return;
+
+        PushUndoSnapshot(CreateUndoSnapshot());
+        Variables.Remove(variable);
     }
 
     public void NormalizeStateOutput(StateItemViewModel state)
@@ -1057,7 +1095,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
                 t.ControlPoints.Select(p => new PointSnapshot(p.X, p.Y)).ToList()))
             .ToList();
 
-        return new UndoSnapshot(GraphType, signalSnapshots, stateSnapshots, transitionSnapshots, initialTransitionSnapshots);
+        return new UndoSnapshot(GraphType, signalSnapshots, Variables.Select(v => new VariableSnapshot(v.Name, v.Type, v.Size)).ToList(), stateSnapshots, transitionSnapshots, initialTransitionSnapshots);
     }
 
     public void PushUndoSnapshot(UndoSnapshot snapshot)
@@ -1124,6 +1162,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         {
             CancelPendingTransition();
             Signals.Clear();
+            Variables.Clear();
             States.Clear();
             Transitions.Clear();
             InitialTransitions.Clear();
@@ -1136,6 +1175,16 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
                     Direction = signal.Direction,
                     Type = signal.Type,
                     Size = signal.Size
+                });
+            }
+
+            foreach (var variable in snapshot.Variables)
+            {
+                Variables.Add(new VariableDefinitionViewModel
+                {
+                    Name = variable.Name,
+                    Type = variable.Type,
+                    Size = variable.Size
                 });
             }
 

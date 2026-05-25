@@ -1074,6 +1074,15 @@ public partial class FiniteStateMachineView : UserControl
         }
     }
 
+    private void OnDeleteVariableClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: VariableDefinitionViewModel variable }
+            && DataContext is FiniteStateMachineViewModel mainVm)
+        {
+            mainVm.DeleteVariable(variable);
+        }
+    }
+
     private void CommitStateEdit(StateItemViewModel state)
     {
         if (!ReferenceEquals(_editingState, state)
