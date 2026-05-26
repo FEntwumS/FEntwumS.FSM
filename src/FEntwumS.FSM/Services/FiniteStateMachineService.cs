@@ -174,7 +174,7 @@ public class FiniteStateMachineService : IFiniteStateMachineService
 
         var rootPath = project.RootFolderPath;
         var entries = fsmFiles
-            .Select(f => (FullPath: f, DisplayName: Path.GetRelativePath(rootPath, f)))
+            .Select(f => (FullPath: Path.Combine(rootPath, f), DisplayName: Path.GetFileName(f)))
             .ToList();
 
         var loadDialog = new FEntwumS.FSM.Views.FsmLoadDialog(entries);
