@@ -78,7 +78,7 @@ Variables are persisted under a `<variables>` element in the XML file.
 - Set **output assignments** (Moore) directly on the state node
 
 ### Transition Properties
-- Boolean **condition** expression (e.g. `a AND NOT b`)
+- Boolean **condition** expression (e.g. `a && b` `a || b` `a || !(b&&c)`)
 - **Output assignments** on transitions (Mealy)
 - Auto-routed curves with adjustable bend and anchor handles
 

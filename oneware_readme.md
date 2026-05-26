@@ -30,6 +30,11 @@ FSM Editor is a OneWare Studio extension for designing and exporting Finite Stat
 
 ---
 
+## Transition Properties
+- Boolean **condition** expression (e.g. `a && b` `a || b` `a || !(b&&c)`)
+- **Output assignments** on transitions (Mealy)
+- Auto-routed curves with adjustable bend and anchor handles
+
 ## Getting Started
 
 1. Click the **FSM Editor** toolbar button to open a blank canvas, or double-click any `.fsmxml` file in the Project Explorer
