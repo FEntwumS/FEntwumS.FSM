@@ -1,0 +1,90 @@
+<?xml version="1.0"?>
+<scxml xmlns="http://www.w3.org/2005/07/scxml" version="1.0" profile="diagram" name="Unbenannt" initial="NEW_STATE1" graph_type="mealy">
+
+  <signals>
+    <signal name = "outgang1" dir="out" type = "bit"/>
+  </signals>
+
+  <variables>
+    <var name = "var1" type = "integer" size = "16" />
+    <var name = "var2" type = "bit"/>
+    <var name = "var3" type = "byte"/>
+    <var name = "var4" type = "vector" size = "16" />
+  </variables>
+
+  <states>
+    <state id = "NEW_STATE1">
+      <position x="336" y="224" />
+      <size width="144" height="48" />
+      <transitions>
+        <transition cond = "1 " target = "NEW_STATE2">
+          <conditionPosition x="466" y="230"/>
+          <startPoint x="664" y="296"/>
+          <endPoint x="520" y="152"/>
+          <ctrlPoints>
+          </ctrlPoints>
+          <assign signal = "outgang1" expr = "0"/>
+        </transition>
+      </transitions>
+      <onentry>
+        <assign variable = "var1" expr = "500"/>
+      </onentry>
+    </state>
+
+    <state id = "NEW_STATE2">
+      <position x="592" y="224" />
+      <size width="144" height="48" />
+      <transitions>
+        <transition cond = "1 " target = "NEW_STATE3">
+          <conditionPosition x="696" y="355"/>
+          <startPoint x="512" y="416"/>
+          <endPoint x="584" y="488"/>
+          <ctrlPoints>
+            <ctrlPoint x="671" y="326"/>
+          </ctrlPoints>
+          <assign signal = "outgang1" expr = "1"/>
+        </transition>
+      </transitions>
+      <onentry>
+        <assign variable = "var1" expr = "var1 - 1"/>
+      </onentry>
+    </state>
+
+    <state id = "NEW_STATE3">
+      <position x="512" y="416" />
+      <size width="144" height="48" />
+      <transitions>
+        <transition cond = "var1 equal 499 " target = "NEW_STATE4">
+          <conditionPosition x="371" y="429"/>
+          <startPoint x="157" y="445"/>
+          <endPoint x="254" y="542"/>
+          <ctrlPoints>
+          </ctrlPoints>
+          <assign signal = "outgang1" expr = "1"/>
+        </transition>
+        <transition cond = "var1 greater_than 499 " target = "NEW_STATE2">
+          <conditionPosition x="500" y="350"/>
+          <startPoint x="530" y="162"/>
+          <endPoint x="557" y="189"/>
+          <ctrlPoints>
+          </ctrlPoints>
+          <assign signal = "outgang1" expr = "0"/>
+        </transition>
+      </transitions>
+    </state>
+
+    <state id = "NEW_STATE4">
+      <position x="192" y="480" />
+      <size width="144" height="48" />
+      <transitions>
+      </transitions>
+    </state>
+
+  </states>
+
+  <startNode target="NEW_STATE1" condition="1">
+    <conditionPosition x="207" y="157"/>
+    <position x="195" y="84"/>
+    <targetPosition x="264" y="264"/>
+  </startNode>
+</scxml>

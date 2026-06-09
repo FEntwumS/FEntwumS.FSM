@@ -19,6 +19,8 @@ public partial class StateItemViewModel : ObservableObject
     [ObservableProperty] private bool _isFinalState;
     [ObservableProperty] private bool _isSelected;
     [ObservableProperty] private string _outputAssignments = string.Empty;
+    [ObservableProperty] private string[] _outputSignalNames = Array.Empty<string>();
+    [ObservableProperty] private string _variableAssignments = string.Empty;
     [ObservableProperty] private bool _isHovered;
     [ObservableProperty] private bool _isHoverAnchorVisible;
     [ObservableProperty] private double _hoverAnchorLeft;
@@ -31,9 +33,43 @@ public partial class StateItemViewModel : ObservableObject
 
     public bool HasOutputAssignments => !string.IsNullOrWhiteSpace(OutputAssignments);
 
+    public bool HasVariableAssignments => !string.IsNullOrWhiteSpace(VariableAssignments);
+
     public Point HoverAnchorPoint => new(X + HoverAnchorLeft + HoverAnchorRadius, Y + HoverAnchorTop + HoverAnchorRadius);
 
     public string DisplayOutputAssignments => string.IsNullOrWhiteSpace(OutputAssignments) ? string.Empty : OutputAssignments;
+
+    public string TruncatedOutputAssignments
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(OutputAssignments))
+                return string.Empty;
+            var lines = OutputAssignments.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            string FormatLine(int i) =>
+                i < OutputSignalNames.Length
+                    ? $"{OutputSignalNames[i]}={lines[i]}"
+                    : lines[i];
+            if (lines.Length <= 1)
+                return FormatLine(0);
+            return FormatLine(0) + "\n...";
+        }
+    }
+
+    partial void OnOutputAssignmentsChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasOutputAssignments));
+        OnPropertyChanged(nameof(DisplayOutputAssignments));
+        OnPropertyChanged(nameof(TruncatedOutputAssignments));
+    }
+
+    partial void OnVariableAssignmentsChanged(string value)
+        => OnPropertyChanged(nameof(HasVariableAssignments));
+
+    partial void OnOutputSignalNamesChanged(string[] value)
+    {
+        OnPropertyChanged(nameof(TruncatedOutputAssignments));
+    }
 
     public Point GetConnectorPoint(ConnectorSide side)
     {
@@ -168,10 +204,5 @@ public partial class StateItemViewModel : ObservableObject
         return (dx * dx) + (dy * dy);
     }
 
-    partial void OnOutputAssignmentsChanged(string value)
-    {
-        OnPropertyChanged(nameof(DisplayOutputAssignments));
-        OnPropertyChanged(nameof(HasOutputAssignments));
-    }
 }
 

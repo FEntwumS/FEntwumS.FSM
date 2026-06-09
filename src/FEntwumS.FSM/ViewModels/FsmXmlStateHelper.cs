@@ -739,4 +739,130 @@ public static class FsmXmlStateHelper
             ? binaryValue
             : binaryValue.PadLeft(normalizedWidth, '0');
     }
+
+    // ── Variable-assignment (onentry) helpers ────────────────────────────────
+
+    /// <summary>
+    /// Reads all &lt;onentry&gt;&lt;assign variable=… expr=…/&gt; elements and converts them
+    /// to the display syntax used in the editor (semicolon-separated).
+    /// </summary>
+    public static string ReadVariableAssignments(XElement stateElement, XNamespace ns)
+    {
+        var onEntry = stateElement.Element(ns + "onentry");
+        if (onEntry is null)
+            return string.Empty;
+
+        var parts = onEntry.Elements(ns + "assign")
+            .Where(a => !string.IsNullOrWhiteSpace(a.Attribute("variable")?.Value))
+            .Select(a => FormatVariableAssignment(
+                a.Attribute("variable")!.Value.Trim(),
+                a.Attribute("expr")?.Value?.Trim() ?? string.Empty))
+            .Where(s => !string.IsNullOrWhiteSpace(s));
+
+        return string.Join("; ", parts);
+    }
+
+    /// <summary>
+    /// Converts a single (variable, expr) pair from XML back to display syntax.
+    /// </summary>
+    private static string FormatVariableAssignment(string varName, string expr)
+    {
+        // var + 1  →  var++
+        if (string.Equals(expr, $"{varName} + 1", StringComparison.Ordinal) ||
+            string.Equals(expr, $"{varName}+1",   StringComparison.Ordinal))
+            return $"{varName}++";
+
+        // var - 1  →  var--
+        if (string.Equals(expr, $"{varName} - 1", StringComparison.Ordinal) ||
+            string.Equals(expr, $"{varName}-1",   StringComparison.Ordinal))
+            return $"{varName}--";
+
+        // shl(…) / shr(…) kept as-is
+        if (Regex.IsMatch(expr, @"^(shl|shr)\(", RegexOptions.IgnoreCase))
+            return expr;
+
+        // pure decimal integer  →  var = #n
+        if (int.TryParse(expr, out _))
+            return $"{varName} = #{expr}";
+
+        // everything else (signal name, hex, binary, expressions)
+        return $"{varName} = {expr}";
+    }
+
+    /// <summary>
+    /// Creates the &lt;onentry&gt; XML element from the state's display-format
+    /// <see cref="StateItemViewModel.VariableAssignments"/> string.
+    /// Returns <c>null</c> if there are no valid operations.
+    /// </summary>
+    public static XElement? CreateOnEntryElement(StateItemViewModel state, XNamespace ns)
+    {
+        var text = state.VariableAssignments;
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+
+        var ops = text.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var assigns = ops
+            .Select(ParseVariableOperation)
+            .Where(r => r.HasValue)
+            .Select(r => new XElement(ns + "assign",
+                new XAttribute("variable", r!.Value.VarName),
+                new XAttribute("expr",     r.Value.Expr)))
+            .ToList();
+
+        if (assigns.Count == 0)
+            return null;
+
+        var onEntry = new XElement(ns + "onentry");
+        foreach (var a in assigns)
+            onEntry.Add(a);
+        return onEntry;
+    }
+
+    /// <summary>
+    /// Parses one semicolon-separated variable operation token into (varName, xmlExpr).
+    /// Supported syntax:
+    ///   var++           → expr = "var + 1"
+    ///   var--           → expr = "var - 1"
+    ///   shl(var)        → expr = "shl(var)"
+    ///   shr(var)        → expr = "shr(var)"
+    ///   var = #123      → expr = "123"        (decimal, # stripped)
+    ///   var = 0xFF      → expr = "0xFF"
+    ///   var = 1010      → expr = "1010"       (binary / signal name)
+    ///   var = other     → expr = "other"
+    /// </summary>
+    private static (string VarName, string Expr)? ParseVariableOperation(string op)
+    {
+        op = op.Trim();
+        if (string.IsNullOrEmpty(op))
+            return null;
+
+        // var++
+        var m = Regex.Match(op, @"^(\w+)\s*\+\+$");
+        if (m.Success)
+            return (m.Groups[1].Value, $"{m.Groups[1].Value} + 1");
+
+        // var--
+        m = Regex.Match(op, @"^(\w+)\s*--$");
+        if (m.Success)
+            return (m.Groups[1].Value, $"{m.Groups[1].Value} - 1");
+
+        // shl(var) or shr(var)
+        m = Regex.Match(op, @"^(shl|shr)\((\w+)\)$", RegexOptions.IgnoreCase);
+        if (m.Success)
+            return (m.Groups[2].Value, op);
+
+        // var = rhs
+        m = Regex.Match(op, @"^(\w+)\s*=\s*(.+)$");
+        if (m.Success)
+        {
+            var varName = m.Groups[1].Value;
+            var rhs     = m.Groups[2].Value.Trim();
+            // strip # decimal prefix
+            if (rhs.StartsWith('#'))
+                return (varName, rhs[1..].Trim());
+            return (varName, rhs);
+        }
+
+        return null;
+    }
 }

@@ -55,6 +55,7 @@ public partial class TransitionViewModel : ObservableObject
     [ObservableProperty] private ConnectorSide _targetSide = ConnectorSide.Left;
     [ObservableProperty] private string _condition = "1";
     [ObservableProperty] private string _outputAssignments = string.Empty;
+    [ObservableProperty] private string[] _outputSignalNames = Array.Empty<string>();
     [ObservableProperty] private double _bend = 48;
     [ObservableProperty] private bool _isAutoRouted = true;
     [ObservableProperty] private bool _isEditingCondition;
@@ -132,9 +133,26 @@ public partial class TransitionViewModel : ObservableObject
 
     public string DisplayOutputAssignments => string.IsNullOrWhiteSpace(OutputAssignments) ? "<outputs>" : OutputAssignments;
 
-    public double OutputLabelWidth => Math.Max(60, GetLongestDisplayOutputLineLength() * 8 + 16);
+    public string TruncatedOutputAssignments
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(OutputAssignments))
+                return "<outputs>";
+            var lines = OutputAssignments.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            string FormatLine(int i) =>
+                i < OutputSignalNames.Length
+                    ? $"{OutputSignalNames[i]}={lines[i]}"
+                    : lines[i];
+            if (lines.Length <= 1)
+                return FormatLine(0);
+            return FormatLine(0) + "\n...";
+        }
+    }
 
-    public double OutputLabelHeight => Math.Max(LabelHeightValue, GetOutputLineCount() * 14 + 8);
+    public double OutputLabelWidth => Math.Max(60, GetLongestTruncatedOutputLineLength() * 8 + 16);
+
+    public double OutputLabelHeight => Math.Max(LabelHeightValue, GetTruncatedOutputLineCount() * 14 + 8);
 
     public double OutputLabelLeft => ConditionPosition.X - (OutputLabelWidth / 2.0);
 
@@ -175,12 +193,20 @@ public partial class TransitionViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(HasOutputAssignments));
         OnPropertyChanged(nameof(DisplayOutputAssignments));
+        OnPropertyChanged(nameof(TruncatedOutputAssignments));
         OnPropertyChanged(nameof(OutputLabelWidth));
         OnPropertyChanged(nameof(OutputLabelHeight));
         OnPropertyChanged(nameof(OutputLabelLeft));
         OnPropertyChanged(nameof(OutputLabelTop));
         OnPropertyChanged(nameof(OutputEditorWidth));
         OnPropertyChanged(nameof(OutputEditorHeight));
+    }
+
+    partial void OnOutputSignalNamesChanged(string[] value)
+    {
+        OnPropertyChanged(nameof(TruncatedOutputAssignments));
+        OnPropertyChanged(nameof(OutputLabelWidth));
+        OnPropertyChanged(nameof(OutputLabelHeight));
     }
 
     partial void OnBendChanged(double value) => RefreshGeometry();
@@ -362,6 +388,20 @@ public partial class TransitionViewModel : ObservableObject
     private int GetOutputLineCount()
     {
         return Math.Max(1, DisplayOutputAssignments.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).Length);
+    }
+
+    private int GetLongestTruncatedOutputLineLength()
+    {
+        return TruncatedOutputAssignments
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.None)
+            .Select(line => line.Length)
+            .DefaultIfEmpty(0)
+            .Max();
+    }
+
+    private int GetTruncatedOutputLineCount()
+    {
+        return Math.Max(1, TruncatedOutputAssignments.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).Length);
     }
 
     private void UpdateManualRoute()

@@ -70,6 +70,20 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     [RelayCommand]
     private void ToggleVariables() => IsVariablesExpanded = !IsVariablesExpanded;
 
+    [ObservableProperty] private bool _showVariableOps = true;
+
+    [RelayCommand]
+    private void ToggleVariableOps() => ShowVariableOps = !ShowVariableOps;
+
+    partial void OnShowVariableOpsChanged(bool value)
+    {
+        if (value)
+            return;
+
+        foreach (var state in States)
+            state.VariableAssignments = string.Empty;
+    }
+
     private StateItemViewModel? _pendingTransitionSource;
     private ConnectorSide _pendingTransitionSourceSide;
     private readonly Stack<UndoSnapshot> _undoStack = new();
@@ -81,7 +95,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     public sealed record SignalSnapshot(string Name, string Direction, string Type, string Size);
     public sealed record VariableSnapshot(string Name, string Type, string Size);
 
-    public sealed record StateSnapshot(string Id, double X, double Y, double Width, double Height, bool IsInitialState, bool IsFinalState, string OutputAssignments);
+    public sealed record StateSnapshot(string Id, double X, double Y, double Width, double Height, bool IsInitialState, bool IsFinalState, string OutputAssignments, string VariableAssignments);
 
     public sealed record TransitionSnapshot(
         int SourceIndex,
@@ -174,11 +188,76 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         Id = $"FSM Graph - {System.IO.Path.GetFileName(filePath)}";
         DraftTransitions.Add(DraftTransition);
 
+        Signals.CollectionChanged += OnSignalsCollectionChanged;
+        States.CollectionChanged += OnStatesCollectionChanged;
+        Transitions.CollectionChanged += OnTransitionsCollectionChanged;
+        InitialTransitions.CollectionChanged += OnTransitionsCollectionChanged;
+
         if (!string.IsNullOrEmpty(filePath))
         {
             LoadFromFile(filePath);
             //Title = $"FSM Graph - {System.IO.Path.GetFileName(filePath)}";
         }
+    }
+
+    private string[] GetOutputSignalNames()
+        => Signals
+            .Where(s => s.IsOutput && !string.IsNullOrWhiteSpace(s.Name))
+            .Select(s => s.Name)
+            .ToArray();
+
+    private void RefreshOutputSignalNames()
+    {
+        var names = GetOutputSignalNames();
+        foreach (var state in States)
+            state.OutputSignalNames = names;
+        foreach (var t in Transitions)
+            t.OutputSignalNames = names;
+        foreach (var t in InitialTransitions)
+            t.OutputSignalNames = names;
+        OnPropertyChanged(nameof(OutputVectorLabel));
+    }
+
+    public string OutputVectorLabel
+    {
+        get
+        {
+            var names = GetOutputSignalNames();
+            return $"Outputvector: [{string.Join(", ", names)}]";
+        }
+    }
+
+    private void OnSignalsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems != null)
+            foreach (SignalDefinitionViewModel sig in e.NewItems)
+                sig.PropertyChanged += OnSignalPropertyChanged;
+        if (e.OldItems != null)
+            foreach (SignalDefinitionViewModel sig in e.OldItems)
+                sig.PropertyChanged -= OnSignalPropertyChanged;
+        RefreshOutputSignalNames();
+    }
+
+    private void OnSignalPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(SignalDefinitionViewModel.Name) or nameof(SignalDefinitionViewModel.Direction))
+            RefreshOutputSignalNames();
+    }
+
+    private void OnStatesCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems is null) return;
+        var names = GetOutputSignalNames();
+        foreach (StateItemViewModel state in e.NewItems)
+            state.OutputSignalNames = names;
+    }
+
+    private void OnTransitionsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems is null) return;
+        var names = GetOutputSignalNames();
+        foreach (TransitionViewModel t in e.NewItems)
+            t.OutputSignalNames = names;
     }
 
     public override async Task<bool> SaveAsync()
@@ -282,6 +361,10 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             if (IsMooreGraph)
                 stateElement.Add(FsmXmlStateHelper.CreateDuringElement(state, ns, Signals));
 
+            var onEntryEl = FsmXmlStateHelper.CreateOnEntryElement(state, ns);
+            if (onEntryEl is not null)
+                stateElement.Add(onEntryEl);
+
             statesContainer.Add(stateElement);
         }
 
@@ -374,6 +457,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
                     OutputAssignments = GraphType == FsmGraphType.Moore
                         ? FsmXmlStateHelper.ReadOutputAssignments(stateEl, _ns, Signals)
                         : string.Empty,
+                    VariableAssignments = FsmXmlStateHelper.ReadVariableAssignments(stateEl, _ns),
                     IsInitialState = string.Equals(stateId, initialStateId, StringComparison.OrdinalIgnoreCase),
                     IsFinalState = finalStateIds.Contains(stateId)
                 });
@@ -1060,7 +1144,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             .ToDictionary(item => item.state, item => item.index);
 
         var stateSnapshots = States
-            .Select(state => new StateSnapshot(state.Id, state.X, state.Y, state.Width, state.Height, state.IsInitialState, state.IsFinalState, state.OutputAssignments))
+            .Select(state => new StateSnapshot(state.Id, state.X, state.Y, state.Width, state.Height, state.IsInitialState, state.IsFinalState, state.OutputAssignments, state.VariableAssignments))
             .ToList();
 
         var transitionSnapshots = Transitions
@@ -1199,6 +1283,7 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
                     Width = state.Width,
                     Height = state.Height,
                     OutputAssignments = state.OutputAssignments,
+                    VariableAssignments = state.VariableAssignments,
                     IsInitialState = state.IsInitialState,
                     IsFinalState = state.IsFinalState
                 })

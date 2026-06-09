@@ -41,7 +41,7 @@
         </Border>
         </Grid>
 
-        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
             <ToggleButton Content="Grid"
                           IsChecked="{Binding ShowGrid, Mode=TwoWay}"
                           HorizontalAlignment="Stretch"
@@ -51,6 +51,11 @@
                           IsChecked="{Binding SnapToGrid, Mode=TwoWay}"
                           HorizontalAlignment="Stretch"
                           ToolTip.Tip="Snap states to grid when moving"/>
+            <ToggleButton Grid.Column="2"
+                          Content="Var Ops"
+                          IsChecked="{Binding ShowVariableOps, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch"
+                          ToolTip.Tip="Show / hide variable operations inside state nodes"/>
         </Grid>
 
     <Separator Margin="0,4" Background="#3e3e42"/>
@@ -257,6 +262,7 @@
                                 Background="#1e1e1e"
                                 ClipToBounds="True"
                                 Focusable="True"
+                                EnableKeyboardNavigation="False"
                                 PanButton="Right"
                                 EnablePan="True"
                                 EnableZoom="True"
@@ -398,7 +404,7 @@
                                                 BorderThickness="1"
                                                 DoubleTapped="OnTransitionOutputDoubleTapped"
                                                 IsVisible="{Binding #Root.DataContext.IsMealyGraph}">
-                                            <TextBlock Text="{Binding DisplayOutputAssignments}"
+                                            <TextBlock Text="{Binding TruncatedOutputAssignments}"
                                                        Foreground="#DDEBFF"
                                                        HorizontalAlignment="Center"
                                                        TextAlignment="Center"
@@ -584,7 +590,7 @@
                                     Tapped="OnTransitionTapped"
                                     DoubleTapped="OnTransitionOutputDoubleTapped"
                                     IsVisible="{Binding #Root.DataContext.IsMealyGraph}">
-                                <TextBlock Text="{Binding DisplayOutputAssignments}"
+                                <TextBlock Text="{Binding TruncatedOutputAssignments}"
                                            Foreground="#DDEBFF"
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
@@ -735,12 +741,25 @@
                                            TextAlignment="Center"
                                            FontWeight="Bold"
                                            TextWrapping="Wrap"/>
+                                <Panel IsVisible="{Binding #Root.DataContext.ShowVariableOps}">
+                                    <Border Background="#1A22A060"
+                                            CornerRadius="6"
+                                            Padding="4,2"
+                                            IsVisible="{Binding HasVariableAssignments}">
+                                        <TextBlock Text="{Binding VariableAssignments}"
+                                                   HorizontalAlignment="Center"
+                                                   TextAlignment="Center"
+                                                   FontSize="9"
+                                                   Foreground="#A5D6A7"
+                                                   TextWrapping="Wrap"/>
+                                    </Border>
+                                </Panel>
                                 <Panel IsVisible="{Binding #Root.DataContext.IsMooreGraph}">
                                     <Border Background="#223FB5FF"
                                             CornerRadius="6"
                                             Padding="6,3"
                                             IsVisible="{Binding HasOutputAssignments}">
-                                        <TextBlock Text="{Binding DisplayOutputAssignments}"
+                                        <TextBlock Text="{Binding TruncatedOutputAssignments}"
                                                    HorizontalAlignment="Center"
                                                    TextAlignment="Center"
                                                    FontSize="10"
@@ -760,6 +779,12 @@
                                          HorizontalAlignment="Stretch"
                                          KeyDown="OnStateEditorKeyDown"
                                          LostFocus="OnStateEditorLostFocus"/>
+                                <TextBox Text="{Binding VariableAssignments, Mode=TwoWay}"
+                                         IsVisible="{Binding #Root.DataContext.ShowVariableOps}"
+                                         HorizontalAlignment="Stretch"
+                                         KeyDown="OnStateEditorKeyDown"
+                                         LostFocus="OnStateEditorLostFocus"
+                                         ToolTip.Tip="Variable ops (;-separated): var++  var--  shl(var)  shr(var)  var=#5  var=sig  var=x+1"/>
                                 <TextBox Text="{Binding OutputAssignments, Mode=TwoWay}"
                                          AcceptsReturn="True"
                                          TextWrapping="Wrap"
@@ -814,10 +839,17 @@
                 <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top"
                             Margin="12,12,0,0" IsHitTestVisible="False" Spacing="1"
                             Opacity="0.7">
-                    <TextBlock Text="{Binding Title}"
-                               Foreground="White"
-                               FontWeight="SemiBold"
-                               FontSize="13"/>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="{Binding Title}"
+                                   Foreground="White"
+                                   FontWeight="SemiBold"
+                                   FontSize="13"/>
+                        <TextBlock Text="{Binding OutputVectorLabel}"
+                                   Foreground="#a0b8cc"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
                     <TextBlock Text="{Binding GraphType}"
                                Foreground="#a0a0a0"
                                FontSize="11"/>
