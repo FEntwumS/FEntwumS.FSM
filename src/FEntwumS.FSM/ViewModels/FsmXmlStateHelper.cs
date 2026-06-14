@@ -572,7 +572,7 @@ public static class FsmXmlStateHelper
                 }
                 else if (string.Equals(signal.Type, "UNSIGNED", StringComparison.OrdinalIgnoreCase))
                 {
-                    signalElement.SetAttributeValue("type", "vector");
+                    signalElement.SetAttributeValue("type", "unsigned");
                     if (!string.IsNullOrWhiteSpace(signal.Size))
                         signalElement.SetAttributeValue("size", signal.Size.Trim());
                 }
@@ -604,7 +604,8 @@ public static class FsmXmlStateHelper
                 var uiType = xmlType.ToLowerInvariant() switch
                 {
                     "integer" => "SIGNED",
-                    "vector"  => "UNSIGNED",
+                    "unsigned" => "UNSIGNED",
+                    "vector"  => "BIT_N",
                     "nibble"  => "BIT_N",
                     "byte"    => "BIT_N",
                     "bit"     => "BIT",
@@ -678,7 +679,7 @@ public static class FsmXmlStateHelper
                 var xmlType = variable.Type switch
                 {
                     "SIGNED"   => "integer",
-                    "UNSIGNED" => "vector",
+                    "UNSIGNED" => "unsigned",
                     "bit"      => "bit",
                     _          => variable.Type.ToLowerInvariant()
                 };
