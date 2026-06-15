@@ -38,27 +38,27 @@ public class FEntwumSFSMModule : IOneWareModule
 			{
 				Title = "README",
 				ContentUrl =
-					"https://raw.githubusercontent.com/FEntwumS/FEntwumS.FSMBackend/refs/heads/main/README.md"
+					"https://raw.githubusercontent.com/FEntwumS/FEntwumS.FSMBackend/refs/heads/main/Readme.md"
 			},
 			new PackageTab()
 			{
 				Title = "License",
 				ContentUrl =
-					"https://raw.githubusercontent.com/FEntwumS/FEntwumS.FSMBackend/refs/heads/main/LICENSE.txt"
+					"https://raw.githubusercontent.com/FEntwumS/FEntwumS.FSMBackend/refs/heads/main/LICENSE"
 			}
 		],
 		Versions =
 		[
 			new PackageVersion()
 			{
-				Version = "0.11.2",
+				Version = "v1.1.2",
 				Targets =
 				[
 					new PackageTarget()
 					{
 						Target = "all",
 						Url =
-							"https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.2/fentwums-fsm-v1.1.2.tar.gz ",
+							"https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.2/fentwums-fsm-v1.1.2.tar.gz",
 						AutoSetting =
 						[
 							new PackageAutoSetting()
@@ -113,9 +113,8 @@ public class FEntwumSFSMModule : IOneWareModule
 						[
 							new PackageAutoSetting()
 							{
-								RelativePath = "",
-								SettingKey = FentwumSNetlistViewerSettingsHelper.JavaPathSettingKey,
-							}
+								RelativePath = "backend"
+                                }
 						]
 					},
 					new PackageTarget()
@@ -127,8 +126,7 @@ public class FEntwumSFSMModule : IOneWareModule
 						[
 							new PackageAutoSetting()
 							{
-								RelativePath = "",
-								SettingKey = FentwumSNetlistViewerSettingsHelper.JavaPathSettingKey,
+								RelativePath = "javaPath"
 							}
 						]
 					},
@@ -141,8 +139,7 @@ public class FEntwumSFSMModule : IOneWareModule
 						[
 							new PackageAutoSetting()
 							{
-								RelativePath = "",
-								SettingKey = FentwumSNetlistViewerSettingsHelper.JavaPathSettingKey,
+								RelativePath = "javaPath"
 							}
 						]
 					},
@@ -155,8 +152,7 @@ public class FEntwumSFSMModule : IOneWareModule
 						[
 							new PackageAutoSetting()
 							{
-								RelativePath = "",
-								SettingKey = FentwumSNetlistViewerSettingsHelper.JavaPathSettingKey,
+								RelativePath = "javaPath"
 							}
 						]
 					},
@@ -169,8 +165,7 @@ public class FEntwumSFSMModule : IOneWareModule
 						[
 							new PackageAutoSetting()
 							{
-								RelativePath = "",
-								SettingKey = FentwumSNetlistViewerSettingsHelper.JavaPathSettingKey,
+								RelativePath = "javaPath"
 							}
 						]
 					},
@@ -183,8 +178,7 @@ public class FEntwumSFSMModule : IOneWareModule
 						[
 							new PackageAutoSetting()
 							{
-								RelativePath = "",
-								SettingKey = FentwumSNetlistViewerSettingsHelper.JavaPathSettingKey,
+								RelativePath = "javaPath"
 							}
 						]
 					}
