@@ -1,6 +1,7 @@
 using OneWare.Essentials.Models;
 using OneWare.Essentials.Services;
 using OneWare.Essentials.Enums;
+using OneWare.Essentials.PackageManager;
 using FEntwumS.FSM.ViewModels;
 using System.Linq;
 namespace FEntwumS.FSM.Services;
@@ -22,17 +23,26 @@ public class FiniteStateMachineService : IFiniteStateMachineService
     private readonly IFileIconService _fileIconService;
     private readonly IProjectExplorerService _projectExplorerService;
     private readonly IWindowService _windowService;
+    private readonly ISettingsService _settingsService;
+    private readonly IPaths _paths;
+    private readonly IPackageService _packageService;
 
     public FiniteStateMachineService(
         IMainDockService mainDockService,
         IFileIconService fileIconService,
         IProjectExplorerService projectExplorerService,
-        IWindowService windowService)
+        IWindowService windowService,
+        ISettingsService settingsService,
+        IPaths paths,
+        IPackageService packageService)
     {
         _mainDockService = mainDockService;
         _fileIconService = fileIconService;
         _projectExplorerService = projectExplorerService;
         _windowService = windowService;
+        _settingsService = settingsService;
+        _paths = paths;
+        _packageService = packageService;
     }
 
     public Task ShowFiniteStateMachineAsync(IProjectFile xmlFile)
@@ -50,7 +60,7 @@ public class FiniteStateMachineService : IFiniteStateMachineService
             return Task.CompletedTask;
         }
 
-        var viewModel = new FiniteStateMachineViewModel(fullPath, _fileIconService, _projectExplorerService, _mainDockService, _windowService);
+        var viewModel = new FiniteStateMachineViewModel(fullPath, _fileIconService, _projectExplorerService, _mainDockService, _windowService, _settingsService, _paths, _packageService);
         _mainDockService.Show(viewModel, DockShowLocation.Document);
 
         return Task.CompletedTask;
@@ -66,7 +76,7 @@ public class FiniteStateMachineService : IFiniteStateMachineService
 
         Directory.CreateDirectory(Path.GetDirectoryName(untitledPath)!);
 
-        var viewModel = new FiniteStateMachineViewModel(untitledPath, _fileIconService, _projectExplorerService, _mainDockService, _windowService)
+        var viewModel = new FiniteStateMachineViewModel(untitledPath, _fileIconService, _projectExplorerService, _mainDockService, _windowService, _settingsService)
         {
             Title = "New Finite State Machine"
         };

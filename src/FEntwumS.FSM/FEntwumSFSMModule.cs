@@ -16,6 +16,9 @@ namespace FEntwumS.FSM;
 
 public class FEntwumSFSMModule : IOneWareModule
 {
+    public const string BackendPathKey = "FEntwumS.FSM.BackendPath";
+    public const string JavaPathKey = "FEntwumS.FSM.JavaPath";
+
     public static readonly Package FSMBackendPackage = new()
 	{
 		Category = "Binaries",
@@ -57,17 +60,39 @@ public class FEntwumSFSMModule : IOneWareModule
 				[
 					new PackageTarget()
 					{
-						Target = "all",
-						Url =
-							"https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
-						AutoSetting =
-						[
-							new PackageAutoSetting()
-							{
-								RelativePath = "fentwums-fsm-backend"
-								
-							}
-						]
+						Target = "win-x64",
+						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
+						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
+					},
+					new PackageTarget()
+					{
+						Target = "win-arm64",
+						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
+						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
+					},
+					new PackageTarget()
+					{
+						Target = "linux-x64",
+						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
+						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
+					},
+					new PackageTarget()
+					{
+						Target = "linux-arm64",
+						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
+						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
+					},
+					new PackageTarget()
+					{
+						Target = "osx-x64",
+						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
+						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
+					},
+					new PackageTarget()
+					{
+						Target = "osx-arm64",
+						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
+						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
 					}
 				]
 			}
@@ -114,8 +139,9 @@ public class FEntwumSFSMModule : IOneWareModule
 						[
 							new PackageAutoSetting()
 							{
-								RelativePath = "backend"
-                                }
+								RelativePath = "javaPath",
+								SettingKey = JavaPathKey
+							}
 						]
 					},
 					new PackageTarget()
@@ -127,7 +153,8 @@ public class FEntwumSFSMModule : IOneWareModule
 						[
 							new PackageAutoSetting()
 							{
-								RelativePath = "javaPath"
+								RelativePath = "javaPath",
+								SettingKey = JavaPathKey
 							}
 						]
 					},
@@ -140,7 +167,8 @@ public class FEntwumSFSMModule : IOneWareModule
 						[
 							new PackageAutoSetting()
 							{
-								RelativePath = "javaPath"
+								RelativePath = "javaPath",
+								SettingKey = JavaPathKey
 							}
 						]
 					},
@@ -153,7 +181,8 @@ public class FEntwumSFSMModule : IOneWareModule
 						[
 							new PackageAutoSetting()
 							{
-								RelativePath = "javaPath"
+								RelativePath = "javaPath",
+								SettingKey = JavaPathKey
 							}
 						]
 					},
@@ -166,7 +195,8 @@ public class FEntwumSFSMModule : IOneWareModule
 						[
 							new PackageAutoSetting()
 							{
-								RelativePath = "javaPath"
+								RelativePath = "javaPath",
+								SettingKey = JavaPathKey
 							}
 						]
 					},
@@ -179,7 +209,8 @@ public class FEntwumSFSMModule : IOneWareModule
 						[
 							new PackageAutoSetting()
 							{
-								RelativePath = "javaPath"
+								RelativePath = "javaPath",
+								SettingKey = JavaPathKey
 							}
 						]
 					}
@@ -203,6 +234,11 @@ public class FEntwumSFSMModule : IOneWareModule
         var fsmService = serviceProvider.GetRequiredService<IFiniteStateMachineService>();
         var fileIconService = serviceProvider.GetRequiredService<IFileIconService>();
         var languageManager = serviceProvider.GetRequiredService<ILanguageManager>();
+
+        // Register settings keys so the package manager can store installation paths
+        var settingsService = serviceProvider.GetRequiredService<ISettingsService>();
+        settingsService.Register<string>(BackendPathKey, "");
+        settingsService.Register<string>(JavaPathKey, "");
 
         // Register packages
         serviceProvider.GetRequiredService<IPackageService>().RegisterPackage(FSMBackendPackage);

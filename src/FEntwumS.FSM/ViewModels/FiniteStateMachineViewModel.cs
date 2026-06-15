@@ -17,6 +17,7 @@ using OneWare.Essentials.Services;
 using OneWare.Essentials.Models;
 using OneWare.Essentials.Enums;
 using OneWare.Essentials.Extensions;
+using OneWare.Essentials.PackageManager;
 using FEntwumS.FSM.Services;
 
 namespace FEntwumS.FSM.ViewModels;
@@ -29,6 +30,9 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
     private readonly OneWare.Essentials.Services.IWindowService _windowService;
     private readonly IProjectExplorerService _projectExplorerService;
     private readonly IMainDockService _mainDockService;
+    private readonly ISettingsService? _settingsService;
+    private readonly IPaths? _paths;
+    private readonly IPackageService? _packageService;
 
     // Synthetic OpenFiles key used so "File > Save All" finds this FSM editor while
     // the regular path key stays free for the text editor to open the same file.
@@ -171,12 +175,18 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         IFileIconService fileIconService,
         IProjectExplorerService projectExplorerService,
         IMainDockService mainDockService,
-        OneWare.Essentials.Services.IWindowService windowService)
+        OneWare.Essentials.Services.IWindowService windowService,
+        ISettingsService? settingsService = null,
+        IPaths? paths = null,
+        IPackageService? packageService = null)
         : base(filePath, fileIconService, projectExplorerService, mainDockService, windowService)
     {
         _windowService = windowService;
         _projectExplorerService = projectExplorerService;
         _mainDockService = mainDockService;
+        _settingsService = settingsService;
+        _paths = paths;
+        _packageService = packageService;
         FilePath = filePath;
         FullPath = filePath ?? string.Empty;
 
@@ -400,6 +410,128 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
         return System.IO.Path.Combine(
             System.IO.Path.GetDirectoryName(FilePath) ?? ".",
             "out");
+    }
+
+    public async Task EnsureBackendInstalledAsync()
+    {
+        if (_packageService == null) return;
+
+        // InstallAsync is idempotent — it skips silently if already installed
+        if (GetBackendJarPath() == null)
+            await _packageService.InstallAsync(FEntwumSFSMModule.FSMBackendPackage);
+
+        // Install the bundled JRE only if no java executable was found
+        if (GetJavaExePath() == "java")
+            await _packageService.InstallAsync(FEntwumSFSMModule.JREPackage);
+    }
+
+    public string? GetBackendJarPath()
+    {
+        // 1. Try the settings-populated path (set by package manager after install)
+        if (_settingsService != null)
+        {
+            try
+            {
+                var settingDir = _settingsService.GetSettingValue<string>(FEntwumSFSMModule.BackendPathKey);
+                if (!string.IsNullOrWhiteSpace(settingDir) && System.IO.Directory.Exists(settingDir))
+                {
+                    var jar = FindFsmJar(settingDir);
+                    if (jar != null) return jar;
+                }
+            }
+            catch { }
+        }
+
+        // 2. Look directly in OneWare's NativeToolsDirectory — works even when the
+        //    setting isn't populated yet (e.g. first launch after install).
+        if (_paths != null)
+        {
+            var nativeDir = System.IO.Path.Combine(_paths.NativeToolsDirectory, "FSMBackend");
+            if (System.IO.Directory.Exists(nativeDir))
+            {
+                var jar = FindFsmJar(nativeDir);
+                if (jar != null) return jar;
+            }
+        }
+
+        // 3. Fall back to a JAR manually placed next to the assembly (development use).
+        var assemblyDir = System.IO.Path.GetDirectoryName(GetType().Assembly.Location) ?? AppContext.BaseDirectory;
+        var fallback = System.IO.Path.Combine(assemblyDir, "backend", "fentwums-fsm-0.1.2.jar");
+        return System.IO.File.Exists(fallback) ? fallback : null;
+    }
+
+    public IEnumerable<string> GetBackendSearchPaths()
+    {
+        var paths = new List<string>();
+
+        if (_settingsService != null)
+        {
+            string? settingDir = null;
+            try { settingDir = _settingsService.GetSettingValue<string>(FEntwumSFSMModule.BackendPathKey); } catch { }
+            if (!string.IsNullOrWhiteSpace(settingDir))
+                paths.Add($"Settings ({FEntwumSFSMModule.BackendPathKey}): {settingDir}");
+        }
+
+        if (_paths != null)
+            paths.Add($"NativeToolsDirectory: {System.IO.Path.Combine(_paths.NativeToolsDirectory, "FSMBackend")}");
+
+        var assemblyDir = System.IO.Path.GetDirectoryName(GetType().Assembly.Location) ?? AppContext.BaseDirectory;
+        paths.Add($"Assembly backend/: {System.IO.Path.Combine(assemblyDir, "backend")}");
+
+        return paths;
+    }
+
+    private static string? FindFsmJar(string directory)
+    {
+        foreach (var dir in new[] { directory }.Concat(System.IO.Directory.GetDirectories(directory)))
+        {
+            var jars = System.IO.Directory.GetFiles(dir, "fentwums-fsm-*.jar")
+                .Where(f => !System.IO.Path.GetFileName(f).StartsWith("original-", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (jars.Length > 0) return jars[0];
+        }
+        return null;
+    }
+
+    public string GetJavaExePath()
+    {
+        var isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+            System.Runtime.InteropServices.OSPlatform.Windows);
+
+        // 1. Try the settings-populated JRE path
+        if (_settingsService != null)
+        {
+            try
+            {
+                var javaDir = _settingsService.GetSettingValue<string>(FEntwumSFSMModule.JavaPathKey);
+                if (!string.IsNullOrWhiteSpace(javaDir))
+                {
+                    var exe = System.IO.Path.Combine(javaDir, "bin", isWindows ? "java.exe" : "java");
+                    if (System.IO.File.Exists(exe)) return exe;
+                }
+            }
+            catch { }
+        }
+
+        // 2. Look directly in OneWare's NativeToolsDirectory for any installed JRE/JDK
+        if (_paths != null)
+        {
+            var jdkRoot = System.IO.Path.Combine(_paths.NativeToolsDirectory, "OpenJDK");
+            if (System.IO.Directory.Exists(jdkRoot))
+            {
+                // The JRE zip typically extracts with a top-level jdk-X.Y.Z+N-jre directory
+                foreach (var sub in System.IO.Directory.GetDirectories(jdkRoot))
+                {
+                    var exe = System.IO.Path.Combine(sub, "bin", isWindows ? "java.exe" : "java");
+                    if (System.IO.File.Exists(exe)) return exe;
+                }
+                // Also try the root (in case it extracts flat)
+                var rootExe = System.IO.Path.Combine(jdkRoot, "bin", isWindows ? "java.exe" : "java");
+                if (System.IO.File.Exists(rootExe)) return rootExe;
+            }
+        }
+
+        return "java"; // fall back to system PATH
     }
 
     public void LoadFromFile(string path)

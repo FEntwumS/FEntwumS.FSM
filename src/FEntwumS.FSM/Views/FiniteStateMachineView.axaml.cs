@@ -1253,17 +1253,17 @@ public partial class FiniteStateMachineView : UserControl
                 System.IO.Directory.CreateDirectory(outputDir);
             }
 
-            // ── Step 3: Locate the backend JAR ───────────────────────────────
-            var assemblyDir = System.IO.Path.GetDirectoryName(
-                                  typeof(FiniteStateMachineView).Assembly.Location)
-                              ?? AppContext.BaseDirectory;
+            // ── Step 3: Locate the backend JAR (auto-install if needed) ──────
+            await vm.EnsureBackendInstalledAsync();
+            var jarPath = vm.GetBackendJarPath();
 
-            var jarPath = System.IO.Path.Combine(assemblyDir, "backend", "fentwums-fsm-0.1.2.jar");
-
-            if (!System.IO.File.Exists(jarPath))
+            if (jarPath == null)
             {
+                var searchedPaths = vm.GetBackendSearchPaths();
                 await vm.ShowMessageAsync("Backend Not Found",
-                    $"Could not locate the backend JAR at:\n{jarPath}",
+                    "The FSM backend JAR could not be found.\n\n" +
+                    "Searched in:\n" + string.Join("\n", searchedPaths) + "\n\n" +
+                    "Please install the 'FEntwumS FSM Backend' package via the OneWare Package Manager.",
                     MessageBoxIcon.Error, owner);
                 return;
             }
@@ -1287,7 +1287,7 @@ public partial class FiniteStateMachineView : UserControl
             // ── Step 5: Run the process ───────────────────────────────────────
             var psi = new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "java",
+                FileName = vm.GetJavaExePath(),
                 Arguments = args.ToString(),
                 UseShellExecute = false,
                 CreateNoWindow = true,
