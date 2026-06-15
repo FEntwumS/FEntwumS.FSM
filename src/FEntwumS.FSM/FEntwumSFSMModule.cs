@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OneWare.Essentials.Enums;
 using OneWare.Essentials.Models;
 using OneWare.Essentials.Services;
+using OneWare.Essentials.ViewModels;
 using FEntwumS.FSM.Services;
 using FEntwumS.FSM.ViewModels;
 using System.IO;
@@ -203,6 +204,10 @@ public class FEntwumSFSMModule : IOneWareModule
         var fileIconService = serviceProvider.GetRequiredService<IFileIconService>();
         var languageManager = serviceProvider.GetRequiredService<ILanguageManager>();
 
+        // Register packages
+        serviceProvider.GetRequiredService<IPackageService>().RegisterPackage(FSMBackendPackage);
+        serviceProvider.GetRequiredService<IPackageService>().RegisterPackage(JREPackage);
+
         // Map .fsmxml to .xml so the text editor uses XML syntax highlighting.
         languageManager.RegisterLanguageExtensionLink(".fsmxml", ".xml");
 
@@ -385,7 +390,19 @@ public class FEntwumSFSMModule : IOneWareModule
                 EnsureFsmxmlIncluded(proj);
         };
 
-        // Register project-level output path setting under the "FEntwumS.FSM" category.
+        // Register context menus and settings
+        RegisterSettings();
+        RegisterProjectSettings(serviceProvider);
+    }
+
+    private void RegisterSettings()
+    {
+        // Placeholder for FSM global settings
+        // Register additional FSM settings here as needed
+    }
+
+    private void RegisterProjectSettings(IServiceProvider serviceProvider)
+    {
         var projectSettingsService = serviceProvider.GetRequiredService<IProjectSettingsService>();
         projectSettingsService.AddProjectSetting(new ProjectSetting(
             "FEntwumS.FSM.OutputPath",
