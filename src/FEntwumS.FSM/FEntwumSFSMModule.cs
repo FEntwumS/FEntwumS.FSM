@@ -9,11 +9,187 @@ using System.IO;
 using System.Reactive.Linq;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
+using OneWare.Essentials.PackageManager;
 
 namespace FEntwumS.FSM;
 
 public class FEntwumSFSMModule : IOneWareModule
 {
+    public static readonly Package FSMBackendPackage = new()
+	{
+		Category = "Binaries",
+		Id = "FSMBackend",
+		Type = "NativeTool",
+		Name = "FEntwumS FSM Backend",
+		Description = "Backend for the FEntwumS FSM",
+		License = "MIT License",
+		IconUrl = "https://avatars.githubusercontent.com/u/184253110?s=200&v=4",
+		Links =
+		[
+			new PackageLink()
+			{
+				Name = "GitHub",
+				Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend",
+			}
+		],
+		Tabs =
+		[
+			new PackageTab()
+			{
+				Title = "README",
+				ContentUrl =
+					"https://raw.githubusercontent.com/FEntwumS/FEntwumS.FSMBackend/refs/heads/main/README.md"
+			},
+			new PackageTab()
+			{
+				Title = "License",
+				ContentUrl =
+					"https://raw.githubusercontent.com/FEntwumS/FEntwumS.FSMBackend/refs/heads/main/LICENSE.txt"
+			}
+		],
+		Versions =
+		[
+			new PackageVersion()
+			{
+				Version = "0.11.2",
+				Targets =
+				[
+					new PackageTarget()
+					{
+						Target = "all",
+						Url =
+							"https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.2/fentwums-fsm-v1.1.2.tar.gz ",
+						AutoSetting =
+						[
+							new PackageAutoSetting()
+							{
+								RelativePath = "fentwums-fsm-backend"
+								
+							}
+						]
+					}
+				]
+			}
+            ]
+	};
+
+    public static readonly Package JREPackage = new()
+	{
+		Category = "Binaries",
+		Id = "OpenJDK",
+		Type = "NativeTool",
+		Name = "Eclipse Adoptium OpenJDK",
+		Description = "Production-ready open-source builds of the Java Development Kit",
+		License = "GPL 2.0 with Classpath Exception",
+		Links =
+		[
+			new PackageLink()
+			{
+				Name = "adoptium.net",
+				Url = "https://adoptium.net/en-GB/temurin/releases/"
+			}
+		],
+		Tabs =
+		[
+			new PackageTab()
+			{
+				Title = "License",
+				ContentUrl = "https://openjdk.org/legal/gplv2+ce.html"
+			}
+		],
+		Versions =
+		[
+			new PackageVersion()
+			{
+				Version = "25.0.3",
+				Targets =
+				[
+					new PackageTarget()
+					{
+						Target = "win-x64",
+						Url =
+							"https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.3%2B9/OpenJDK25U-jre_x64_windows_hotspot_25.0.3_9.zip",
+						AutoSetting =
+						[
+							new PackageAutoSetting()
+							{
+								RelativePath = "",
+								SettingKey = FentwumSNetlistViewerSettingsHelper.JavaPathSettingKey,
+							}
+						]
+					},
+					new PackageTarget()
+					{
+						Target = "win-arm64",
+						Url =
+							"https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.3%2B9/OpenJDK25U-jre_aarch64_windows_hotspot_25.0.3_9.zip",
+						AutoSetting =
+						[
+							new PackageAutoSetting()
+							{
+								RelativePath = "",
+								SettingKey = FentwumSNetlistViewerSettingsHelper.JavaPathSettingKey,
+							}
+						]
+					},
+					new PackageTarget()
+					{
+						Target = "linux-x64",
+						Url =
+							"https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.3%2B9/OpenJDK25U-jre_x64_linux_hotspot_25.0.3_9.tar.gz",
+						AutoSetting =
+						[
+							new PackageAutoSetting()
+							{
+								RelativePath = "",
+								SettingKey = FentwumSNetlistViewerSettingsHelper.JavaPathSettingKey,
+							}
+						]
+					},
+					new PackageTarget()
+					{
+						Target = "linux-arm64",
+						Url =
+							"https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.3%2B9/OpenJDK25U-jre_aarch64_linux_hotspot_25.0.3_9.tar.gz",
+						AutoSetting =
+						[
+							new PackageAutoSetting()
+							{
+								RelativePath = "",
+								SettingKey = FentwumSNetlistViewerSettingsHelper.JavaPathSettingKey,
+							}
+						]
+					},
+					new PackageTarget()
+					{
+						Target = "osx-x64",
+						Url =
+							"https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.3%2B9/OpenJDK25U-jre_x64_mac_hotspot_25.0.3_9.tar.gz",
+						AutoSetting =
+						[
+							new PackageAutoSetting()
+							{
+								RelativePath = "",
+								SettingKey = FentwumSNetlistViewerSettingsHelper.JavaPathSettingKey,
+							}
+						]
+					},
+					new PackageTarget()
+					{
+						Target = "osx-arm64",
+						Url =
+							"https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.3%2B9/OpenJDK25U-jre_aarch64_mac_hotspot_25.0.3_9.tar.gz",
+						AutoSetting =
+						[
+							new PackageAutoSetting()
+							{
+								RelativePath = "",
+								SettingKey = FentwumSNetlistViewerSettingsHelper.JavaPathSettingKey,
+							}
+						]
+					}
+				]
+			}]};
     public string Id => "FEntwumS.FSM";
 
     public IReadOnlyCollection<string> Dependencies => Array.Empty<string>();

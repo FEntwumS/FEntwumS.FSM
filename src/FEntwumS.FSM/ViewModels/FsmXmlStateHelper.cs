@@ -782,11 +782,7 @@ public static class FsmXmlStateHelper
         if (Regex.IsMatch(expr, @"^(shl|shr)\(", RegexOptions.IgnoreCase))
             return expr;
 
-        // pure decimal integer  →  var = #n
-        if (int.TryParse(expr, out _))
-            return $"{varName} = #{expr}";
-
-        // everything else (signal name, hex, binary, expressions)
+        // everything else (signal name, hex, binary, decimal literal, expressions)
         return $"{varName} = {expr}";
     }
 
@@ -857,10 +853,9 @@ public static class FsmXmlStateHelper
         if (m.Success)
         {
             var varName = m.Groups[1].Value;
-            var rhs     = m.Groups[2].Value.Trim();
-            // strip # decimal prefix
-            if (rhs.StartsWith('#'))
-                return (varName, rhs[1..].Trim());
+            var rhs = m.Groups[2].Value.Trim();
+            // Keep the literal notation exactly as entered so the backend receives the
+            // user's chosen binary/decimal/hex syntax unchanged.
             return (varName, rhs);
         }
 
