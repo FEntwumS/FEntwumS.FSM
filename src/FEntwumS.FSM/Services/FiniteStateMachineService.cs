@@ -15,6 +15,8 @@ public interface IFiniteStateMachineService
     Task CreateNewFiniteStateMachineAsync();
 
     Task OpenFromToolbarAsync();
+
+    Task EnsureBackendInstalledAsync();
 }
 
 public class FiniteStateMachineService : IFiniteStateMachineService
@@ -160,6 +162,19 @@ public class FiniteStateMachineService : IFiniteStateMachineService
             await _projectExplorerService.SaveProjectAsync(project);
 
         await ShowFiniteStateMachineByPathAsync(fullPath);
+    }
+
+    public async Task EnsureBackendInstalledAsync()
+    {
+        string? backendDir = null;
+        try { backendDir = _settingsService.GetSettingValue<string>(FEntwumSFSMModule.BackendPathKey); } catch { }
+        if (string.IsNullOrWhiteSpace(backendDir) || !Directory.Exists(backendDir))
+            await _packageService.InstallAsync(FEntwumSFSMModule.FSMBackendPackage);
+
+        string? javaDir = null;
+        try { javaDir = _settingsService.GetSettingValue<string>(FEntwumSFSMModule.JavaPathKey); } catch { }
+        if (string.IsNullOrWhiteSpace(javaDir) || !Directory.Exists(javaDir))
+            await _packageService.InstallAsync(FEntwumSFSMModule.JREPackage);
     }
 
     private async Task LoadExistingFromToolbarAsync()

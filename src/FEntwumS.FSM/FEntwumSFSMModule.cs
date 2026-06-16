@@ -11,6 +11,7 @@ using System.Reactive.Linq;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using OneWare.Essentials.PackageManager;
+using FEntwumS.FSM.Views;
 
 namespace FEntwumS.FSM;
 
@@ -240,9 +241,14 @@ public class FEntwumSFSMModule : IOneWareModule
         settingsService.Register<string>(BackendPathKey, "");
         settingsService.Register<string>(JavaPathKey, "");
 
+        
         // Register packages
         serviceProvider.GetRequiredService<IPackageService>().RegisterPackage(FSMBackendPackage);
         serviceProvider.GetRequiredService<IPackageService>().RegisterPackage(JREPackage);
+
+        // Eagerly install backend + JRE in the background so they are ready before the user
+        // clicks Generate VHDL for the first time.
+        _ = fsmService.EnsureBackendInstalledAsync();
 
         // Map .fsmxml to .xml so the text editor uses XML syntax highlighting.
         languageManager.RegisterLanguageExtensionLink(".fsmxml", ".xml");
