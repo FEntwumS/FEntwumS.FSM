@@ -1,0 +1,130 @@
+<?xml version="1.0"?>
+<scxml xmlns="http://www.w3.org/2005/07/scxml" version="1.0" profile="diagram" name="serial_transmitter" initial="S_IDLE" graph_type="moore">
+
+  <signals>
+    <signal name = "load" dir="in" type = "bit"/>
+    <signal name = "busy" dir="out" type = "bit"/>
+    <signal name = "lineout" dir="out" type = "bit"/>
+    <signal name = "data" dir="in" type = "byte"/>
+  </signals>
+
+  <variables>
+    <var name = "cnt" type = "byte"/>
+    <var name = "d" type = "byte"/>
+  </variables>
+
+  <states>
+    <state id = "S_IDLE">
+      <position x="128" y="128" />
+      <size width="144" height="64" />
+      <transitions>
+        <transition cond = "load " target = "S_LOAD">
+          <conditionPosition x="149" y="177"/>
+          <startPoint x="128" y="240"/>
+          <endPoint x="128" y="240"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+      </transitions>
+      <onentry>
+        <assign variable = "d" expr = "0"/>
+      </onentry>
+      <during>
+        <assign signal = "busy" expr = "0"/>
+        <assign signal = "lineout" expr = "1"/>
+      </during>
+    </state>
+
+    <state id = "S_LOAD">
+      <position x="128" y="240" />
+      <size width="144" height="64" />
+      <transitions>
+        <transition cond = "not load " target = "S_START">
+          <conditionPosition x="152" y="294"/>
+          <startPoint x="128" y="352"/>
+          <endPoint x="128" y="352"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+      </transitions>
+      <onentry>
+        <assign variable = "d" expr = "data"/>
+      </onentry>
+      <during>
+        <assign signal = "busy" expr = "0"/>
+        <assign signal = "lineout" expr = "1"/>
+      </during>
+    </state>
+
+    <state id = "S_START">
+      <position x="128" y="352" />
+      <size width="144" height="64" />
+      <transitions>
+        <transition cond = "1 " target = "S_SEND">
+          <conditionPosition x="257" y="332"/>
+          <startPoint x="456" y="424"/>
+          <endPoint x="312" y="280"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+      </transitions>
+      <onentry>
+        <assign variable = "cnt" expr = "0"/>
+      </onentry>
+      <during>
+        <assign signal = "busy" expr = "1"/>
+        <assign signal = "lineout" expr = "0"/>
+      </during>
+    </state>
+
+    <state id = "S_SEND">
+      <position x="384" y="352" />
+      <size width="144" height="64" />
+      <transitions>
+        <transition cond = "cnt equal 7 " target = "S_STOP">
+          <conditionPosition x="419" y="294"/>
+          <startPoint x="384" y="240"/>
+          <endPoint x="384" y="240"/>
+          <ctrlPoints>
+          </ctrlPoints>
+        </transition>
+      </transitions>
+      <onentry>
+        <assign variable = "d" expr = "shr(d)"/>
+      </onentry>
+      <onentry>
+        <assign variable = "cnt" expr = "cnt + 1"/>
+      </onentry>
+      <during>
+        <assign signal = "busy" expr = "1"/>
+        <assign signal = "lineout" expr = "d(0,0)"/>
+      </during>
+    </state>
+
+    <state id = "S_STOP">
+      <position x="384" y="240" />
+      <size width="144" height="64" />
+      <transitions>
+        <transition cond = "1 " target = "S_IDLE">
+          <conditionPosition x="308" y="114"/>
+          <startPoint x="128" y="128"/>
+          <endPoint x="200" y="200"/>
+          <ctrlPoints>
+            <ctrlPoint x="384" y="128"/>
+          </ctrlPoints>
+        </transition>
+      </transitions>
+      <during>
+        <assign signal = "busy" expr = "1"/>
+        <assign signal = "lineout" expr = "1"/>
+      </during>
+    </state>
+
+  </states>
+
+  <startNode target="S_IDLE" condition="1">
+    <conditionPosition x="82" y="29"/>
+    <position x="32" y="48"/>
+    <targetPosition x="128" y="128"/>
+  </startNode>
+</scxml>

@@ -246,7 +246,7 @@ public class FEntwumSFSMModule : IOneWareModule
         serviceProvider.GetRequiredService<IPackageService>().RegisterPackage(FSMBackendPackage);
         serviceProvider.GetRequiredService<IPackageService>().RegisterPackage(JREPackage);
 
-        // Eagerly install backend + JRE in the background so they are ready before the user
+        // Install backend + JRE in the background so they are ready before the user
         // clicks Generate VHDL for the first time.
         _ = fsmService.EnsureBackendInstalledAsync();
 

@@ -1,0 +1,153 @@
+<?xml version="1.0"?>
+<scxml xmlns="http://www.w3.org/2005/07/scxml" version="1.0" profile="diagram" name="FahrradlichtMealy" initial="Aus" graph_type="mealy">
+  <signals>
+    <signal name="T" dir="in" type="bit" ></signal>
+    <signal name="R" dir="in" type="bit" ></signal>
+    <signal name="L" dir="out" type="vector" size="3" ></signal>
+  </signals>
+  <variables ></variables>
+  <states>
+    <state id="Aus">
+      <position x="197" y="94" ></position>
+      <size width="144" height="48" ></size>
+      <transitions>
+        <transition cond="T " target="AlleAn" autoRoute="true">
+          <conditionPosition x="548" y="163" ></conditionPosition>
+          <startPoint x="297" y="137" ></startPoint>
+          <endPoint x="800" y="149" ></endPoint>
+          <ctrlPoints ></ctrlPoints>
+          <assign signal="L" expr="7" ></assign>
+        </transition>
+        <transition cond="not T " target="Aus" autoRoute="true">
+          <conditionPosition x="325" y="58" ></conditionPosition>
+          <startPoint x="247" y="94" ></startPoint>
+          <endPoint x="297" y="144" ></endPoint>
+          <ctrlPoints ></ctrlPoints>
+          <assign signal="L" expr="0" ></assign>
+        </transition>
+      </transitions>
+    </state>
+    <state id="AlleAn">
+      <position x="800" y="100" ></position>
+      <size width="144" height="48" ></size>
+      <transitions>
+        <transition cond="not T " target="AlleAn" autoRoute="true">
+          <conditionPosition x="928" y="64" ></conditionPosition>
+          <startPoint x="850" y="100" ></startPoint>
+          <endPoint x="900" y="150" ></endPoint>
+          <ctrlPoints ></ctrlPoints>
+          <assign signal="L" expr="7" ></assign>
+        </transition>
+        <transition cond="T " target="Rotieren1" autoRoute="false">
+          <conditionPosition x="760" y="298" ></conditionPosition>
+          <startPoint x="837" y="198" ></startPoint>
+          <endPoint x="812" y="301" ></endPoint>
+          <ctrlPoints>
+            <ctrlPoint x="727" y="355" ></ctrlPoint>
+          </ctrlPoints>
+          <assign signal="L" expr="4" ></assign>
+        </transition>
+      </transitions>
+    </state>
+    <state id="Rotieren1">
+      <position x="750" y="300" ></position>
+      <size width="144" height="48" ></size>
+      <transitions>
+        <transition cond="R and not T " target="Rotieren2" autoRoute="false">
+          <conditionPosition x="625" y="394" ></conditionPosition>
+          <startPoint x="757" y="375" ></startPoint>
+          <endPoint x="598" y="536" ></endPoint>
+          <ctrlPoints>
+            <ctrlPoint x="596" y="354" ></ctrlPoint>
+          </ctrlPoints>
+          <assign signal="L" expr="2" ></assign>
+        </transition>
+        <transition cond="T " target="Aus" autoRoute="true">
+          <conditionPosition x="534" y="218" ></conditionPosition>
+          <startPoint x="759" y="320" ></startPoint>
+          <endPoint x="296" y="155" ></endPoint>
+          <ctrlPoints ></ctrlPoints>
+          <assign signal="L" expr="0" ></assign>
+        </transition>
+        <transition cond="not T and not R " target="Rotieren1" autoRoute="false">
+          <conditionPosition x="931" y="315" ></conditionPosition>
+          <startPoint x="826" y="307" ></startPoint>
+          <endPoint x="850" y="350" ></endPoint>
+          <ctrlPoints>
+            <ctrlPoint x="1051" y="286" ></ctrlPoint>
+          </ctrlPoints>
+          <assign signal="L" expr="4" ></assign>
+        </transition>
+      </transitions>
+    </state>
+    <state id="Rotieren2">
+      <position x="500" y="500" ></position>
+      <size width="144" height="48" ></size>
+      <transitions>
+        <transition cond="R and not T " target="Rotieren3" autoRoute="true">
+          <conditionPosition x="413" y="430" ></conditionPosition>
+          <startPoint x="508" y="522" ></startPoint>
+          <endPoint x="295" y="371" ></endPoint>
+          <ctrlPoints ></ctrlPoints>
+          <assign signal="L" expr="1" ></assign>
+        </transition>
+        <transition cond="T " target="Aus" autoRoute="false">
+          <conditionPosition x="117" y="241" ></conditionPosition>
+          <startPoint x="500" y="557" ></startPoint>
+          <endPoint x="212" y="109" ></endPoint>
+          <ctrlPoints>
+            <ctrlPoint x="-147" y="166" ></ctrlPoint>
+          </ctrlPoints>
+          <assign signal="L" expr="0" ></assign>
+        </transition>
+        <transition cond="not T and not R " target="Rotieren2" autoRoute="false">
+          <conditionPosition x="551" y="584" ></conditionPosition>
+          <startPoint x="550" y="500" ></startPoint>
+          <endPoint x="567" y="596" ></endPoint>
+          <ctrlPoints>
+            <ctrlPoint x="575" y="614" ></ctrlPoint>
+          </ctrlPoints>
+          <assign signal="L" expr="2" ></assign>
+        </transition>
+      </transitions>
+    </state>
+    <state id="Rotieren3">
+      <position x="200" y="300" ></position>
+      <size width="144" height="48" ></size>
+      <transitions>
+        <transition cond="R and not T " target="Rotieren1" autoRoute="true">
+          <conditionPosition x="524" y="366" ></conditionPosition>
+          <startPoint x="299" y="343" ></startPoint>
+          <endPoint x="750" y="350" ></endPoint>
+          <ctrlPoints ></ctrlPoints>
+          <assign signal="L" expr="4" ></assign>
+        </transition>
+        <transition cond="T " target="Aus" autoRoute="true">
+          <conditionPosition x="268" y="247" ></conditionPosition>
+          <startPoint x="249" y="300" ></startPoint>
+          <endPoint x="248" y="194" ></endPoint>
+          <ctrlPoints ></ctrlPoints>
+          <assign signal="L" expr="0" ></assign>
+        </transition>
+        <transition cond="not T and not R " target="Rotieren3" autoRoute="false">
+          <conditionPosition x="170" y="357" ></conditionPosition>
+          <startPoint x="250" y="300" ></startPoint>
+          <endPoint x="300" y="350" ></endPoint>
+          <ctrlPoints>
+            <ctrlPoint x="89" y="368" ></ctrlPoint>
+          </ctrlPoints>
+          <assign signal="L" expr="1" ></assign>
+        </transition>
+      </transitions>
+    </state>
+  </states>
+  <startNode target="Aus" condition="1">
+    <conditionPosition x="119" y="142" ></conditionPosition>
+    <position x="74" y="81" ></position>
+    <targetPosition x="178" y="178" ></targetPosition>
+    <endPoint x="200" y="127" ></endPoint>
+    <ctrlPoints>
+      <ctrlPoint x="113" y="150" ></ctrlPoint>
+    </ctrlPoints>
+  </startNode>
+</scxml>

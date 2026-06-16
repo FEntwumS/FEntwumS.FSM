@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<scxml xmlns="http://www.w3.org/2005/07/scxml" version="1.0" profile="diagram" name="Lichtsteuerung" initial="Aus" graph_type="moore">
+  <signals>
+    <signal name="T0" dir="in" type="bit" ></signal>
+    <signal name="T1" dir="in" type="bit" ></signal>
+    <signal name="T2" dir="in" type="bit" ></signal>
+    <signal name="L" dir="out" type="bit" ></signal>
+  </signals>
+  <variables ></variables>
+  <states>
+    <state id="Aus">
+      <position x="144" y="128" ></position>
+      <size width="144" height="64" ></size>
+      <transitions>
+        <transition cond="T0 or T1 or T2 " target="NeueTaste0" autoRoute="true">
+          <conditionPosition x="338" y="198" ></conditionPosition>
+          <startPoint x="244" y="178" ></startPoint>
+          <endPoint x="432" y="178" ></endPoint>
+          <ctrlPoints ></ctrlPoints>
+        </transition>
+      </transitions>
+      <during>
+        <assign signal="L" expr="0" ></assign>
+      </during>
+    </state>
+    <state id="NeueTaste0">
+      <position x="432" y="128" ></position>
+      <size width="144" height="64" ></size>
+      <transitions>
+        <transition cond="not ( T0 or T1 or T2 ) " target="An" autoRoute="true">
+          <conditionPosition x="462" y="274" ></conditionPosition>
+          <startPoint x="482" y="228" ></startPoint>
+          <endPoint x="482" y="320" ></endPoint>
+          <ctrlPoints ></ctrlPoints>
+        </transition>
+      </transitions>
+      <during>
+        <assign signal="L" expr="1" ></assign>
+      </during>
+    </state>
+    <state id="An">
+      <position x="432" y="320" ></position>
+      <size width="144" height="64" ></size>
+      <transitions>
+        <transition cond="T0 or T1 or T2 " target="NeueTaste1" autoRoute="true">
+          <conditionPosition x="338" y="350" ></conditionPosition>
+          <startPoint x="432" y="370" ></startPoint>
+          <endPoint x="244" y="370" ></endPoint>
+          <ctrlPoints ></ctrlPoints>
+        </transition>
+      </transitions>
+      <during>
+        <assign signal="L" expr="1" ></assign>
+      </during>
+    </state>
+    <state id="NeueTaste1">
+      <position x="144" y="320" ></position>
+      <size width="144" height="64" ></size>
+      <transitions>
+        <transition cond="not ( T0 or T1 or T2 ) " target="Aus" autoRoute="true">
+          <conditionPosition x="214" y="274" ></conditionPosition>
+          <startPoint x="194" y="320" ></startPoint>
+          <endPoint x="194" y="228" ></endPoint>
+          <ctrlPoints ></ctrlPoints>
+        </transition>
+      </transitions>
+      <during>
+        <assign signal="L" expr="0" ></assign>
+      </during>
+    </state>
+  </states>
+  <startNode target="Aus" condition="1">
+    <conditionPosition x="59" y="54" ></conditionPosition>
+    <position x="32" y="48" ></position>
+    <targetPosition x="108" y="108" ></targetPosition>
+    <endPoint x="155" y="146" ></endPoint>
+    <ctrlPoints ></ctrlPoints>
+  </startNode>
+</scxml>
