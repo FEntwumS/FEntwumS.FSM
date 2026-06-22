@@ -56,7 +56,7 @@ public class FEntwumSFSMModule : IOneWareModule
 		[
 			new PackageVersion()
 			{
-				Version = "v1.1.4",
+				Version = "1.1.4",
 				Targets =
 				[
 					new PackageTarget()
