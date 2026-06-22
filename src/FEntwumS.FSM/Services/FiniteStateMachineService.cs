@@ -16,7 +16,7 @@ public interface IFiniteStateMachineService
 
     Task OpenFromToolbarAsync();
 
-    Task EnsureBackendInstalledAsync();
+    Task<bool> EnsureBackendInstalledAsync();
 }
 
 public class FiniteStateMachineService : IFiniteStateMachineService
@@ -28,6 +28,8 @@ public class FiniteStateMachineService : IFiniteStateMachineService
     private readonly ISettingsService _settingsService;
     private readonly IPaths _paths;
     private readonly IPackageService _packageService;
+    private readonly IApplicationStateService _applicationStateService;
+    private readonly IPackageWindowService _packageWindowService;
 
     public FiniteStateMachineService(
         IMainDockService mainDockService,
@@ -36,7 +38,9 @@ public class FiniteStateMachineService : IFiniteStateMachineService
         IWindowService windowService,
         ISettingsService settingsService,
         IPaths paths,
-        IPackageService packageService)
+        IPackageService packageService,
+        IApplicationStateService applicationStateService,
+        IPackageWindowService packageWindowService)
     {
         _mainDockService = mainDockService;
         _fileIconService = fileIconService;
@@ -45,6 +49,8 @@ public class FiniteStateMachineService : IFiniteStateMachineService
         _settingsService = settingsService;
         _paths = paths;
         _packageService = packageService;
+        _applicationStateService = applicationStateService;
+        _packageWindowService = packageWindowService;
     }
 
     public Task ShowFiniteStateMachineAsync(IProjectFile xmlFile)
@@ -164,17 +170,61 @@ public class FiniteStateMachineService : IFiniteStateMachineService
         await ShowFiniteStateMachineByPathAsync(fullPath);
     }
 
-    public async Task EnsureBackendInstalledAsync()
+    public async Task<bool> EnsureBackendInstalledAsync()
     {
-        string? backendDir = null;
-        try { backendDir = _settingsService.GetSettingValue<string>(FEntwumSFSMModule.BackendPathKey); } catch { }
-        if (string.IsNullOrWhiteSpace(backendDir) || !Directory.Exists(backendDir))
-            await _packageService.InstallAsync(FEntwumSFSMModule.FSMBackendPackage);
+        var proc = _applicationStateService.AddState("Checking FSM dependencies", AppState.Loading);
+        bool needsRestart = false;
 
-        string? javaDir = null;
-        try { javaDir = _settingsService.GetSettingValue<string>(FEntwumSFSMModule.JavaPathKey); } catch { }
-        if (string.IsNullOrWhiteSpace(javaDir) || !Directory.Exists(javaDir))
-            await _packageService.InstallAsync(FEntwumSFSMModule.JREPackage);
+        bool autoDownload = false;
+        try { autoDownload = _settingsService.GetSettingValue<bool>("Experimental_AutoDownloadBinaries"); } catch { }
+
+        foreach (var package in new[] { FEntwumSFSMModule.FSMBackendPackage, FEntwumSFSMModule.JREPackage })
+        {
+            var state = _packageService.Packages.GetValueOrDefault(package.Id!);
+            if (state == null) continue;
+
+            if (state.Status is PackageStatus.NeedRestart)
+            {
+                needsRestart = true;
+                continue;
+            }
+
+            if (state.Status is not PackageStatus.Available)
+                continue;
+
+            if (autoDownload)
+            {
+                await _packageService.InstallAsync(package);
+                if (_packageService.Packages.GetValueOrDefault(package.Id!)?.Status is PackageStatus.NeedRestart)
+                    needsRestart = true;
+            }
+            else
+            {
+                bool installed = await _packageWindowService.QuickInstallPackageAsync(package.Id!);
+                if (!installed)
+                {
+                    _applicationStateService.RemoveState(proc, "FSM dependency installation cancelled");
+                    return false;
+                }
+                if (_packageService.Packages.GetValueOrDefault(package.Id!)?.Status is PackageStatus.NeedRestart)
+                    needsRestart = true;
+            }
+        }
+
+        if (needsRestart)
+        {
+            _applicationStateService.RemoveState(proc, "Restart required");
+            var answer = await _windowService.ShowYesNoAsync(
+                "Restart Required",
+                "FSM backend dependencies were installed. OneWare Studio needs to restart before they can be used. Restart now?",
+                MessageBoxIcon.Info, null);
+            if (answer == MessageBoxStatus.Yes)
+                await _applicationStateService.TryRestartAsync();
+            return false;
+        }
+
+        _applicationStateService.RemoveState(proc);
+        return true;
     }
 
     private async Task LoadExistingFromToolbarAsync()

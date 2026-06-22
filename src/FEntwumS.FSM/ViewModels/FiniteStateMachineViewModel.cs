@@ -412,17 +412,41 @@ public partial class FiniteStateMachineViewModel : ExtendedDocument, IDockable
             "out");
     }
 
-    public async Task EnsureBackendInstalledAsync()
+    public async Task<bool> EnsureBackendInstalledAsync()
     {
-        if (_packageService == null) return;
+        if (_packageService == null) return true;
 
-        // InstallAsync is idempotent — it skips silently if already installed
-        if (GetBackendJarPath() == null)
-            await _packageService.InstallAsync(FEntwumSFSMModule.FSMBackendPackage);
+        bool needsRestart = false;
 
-        // Install the bundled JRE only if no java executable was found
-        if (GetJavaExePath() == "java")
-            await _packageService.InstallAsync(FEntwumSFSMModule.JREPackage);
+        foreach (var package in new[] { FEntwumSFSMModule.FSMBackendPackage, FEntwumSFSMModule.JREPackage })
+        {
+            var state = _packageService.Packages.GetValueOrDefault(package.Id!);
+            if (state == null) continue;
+
+            if (state.Status is PackageStatus.NeedRestart)
+            {
+                needsRestart = true;
+                continue;
+            }
+
+            if (state.Status is PackageStatus.Available)
+            {
+                await _packageService.InstallAsync(package);
+                if (_packageService.Packages.GetValueOrDefault(package.Id!)?.Status is PackageStatus.NeedRestart)
+                    needsRestart = true;
+            }
+        }
+
+        if (needsRestart)
+        {
+            await (_windowService?.ShowMessageAsync(
+                "Restart Required",
+                "FSM backend dependencies were installed. Please restart OneWare Studio before generating.",
+                MessageBoxIcon.Warning, null) ?? Task.CompletedTask);
+            return false;
+        }
+
+        return true;
     }
 
     public string? GetBackendJarPath()

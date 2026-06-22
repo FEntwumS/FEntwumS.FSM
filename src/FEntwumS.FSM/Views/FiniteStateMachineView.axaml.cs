@@ -1254,7 +1254,8 @@ public partial class FiniteStateMachineView : UserControl
             }
 
             // ── Step 3: Locate the backend JAR (auto-install if needed) ──────
-            await vm.EnsureBackendInstalledAsync();
+            if (!await vm.EnsureBackendInstalledAsync())
+                return;
             var jarPath = vm.GetBackendJarPath();
 
             if (jarPath == null)
