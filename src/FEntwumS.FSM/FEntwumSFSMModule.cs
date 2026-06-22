@@ -56,43 +56,13 @@ public class FEntwumSFSMModule : IOneWareModule
 		[
 			new PackageVersion()
 			{
-				Version = "v1.1.3",
+				Version = "v1.1.4",
 				Targets =
 				[
 					new PackageTarget()
 					{
-						Target = "win-x64",
-						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
-						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
-					},
-					new PackageTarget()
-					{
-						Target = "win-arm64",
-						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
-						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
-					},
-					new PackageTarget()
-					{
-						Target = "linux-x64",
-						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
-						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
-					},
-					new PackageTarget()
-					{
-						Target = "linux-arm64",
-						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
-						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
-					},
-					new PackageTarget()
-					{
-						Target = "osx-x64",
-						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
-						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
-					},
-					new PackageTarget()
-					{
-						Target = "osx-arm64",
-						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.3/fentwums-fsm-v1.1.3.tar.gz",
+						Target = "all",
+						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.4/fentwums-fsm-v1.1.4.tar.gz",
 						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
 					}
 				]
