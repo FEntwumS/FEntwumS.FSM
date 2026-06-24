@@ -542,7 +542,8 @@ public partial class FiniteStateMachineView : UserControl
                 _layoutTransition.SetTargetAnchorFromPointer(currentPosition);
                 break;
             default:
-                _layoutTransition.SetManualBendPoint(currentPosition);
+                if (!_layoutTransition.IsInitialTransition)
+                    _layoutTransition.SetManualBendPoint(currentPosition);
                 break;
         }
 
