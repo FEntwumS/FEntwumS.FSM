@@ -185,8 +185,7 @@ Double-click any `.fsmxml` file in the Project Explorer to open it in the editor
 **Prerequisites**
 - [Visual Studio Code](https://code.visualstudio.com/)
 - [OneWare Studio](https://one-ware.com/docs/getting-started/setup)
-- [JDK](https://adoptium.net/) (any current version, with `JAVA_HOME` set for all users)
-- .NET 10 SDK
+- .NET 10 SDK (can be installed within Visual Studio Code)
 
 **Steps**
 1. Install the .NET 10 SDK (search `>.net install` in VS Code's command palette)
