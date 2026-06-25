@@ -186,18 +186,14 @@ Double-click any `.fsmxml` file in the Project Explorer to open it in the editor
 - [Visual Studio Code](https://code.visualstudio.com/)
 - [OneWare Studio](https://one-ware.com/docs/getting-started/setup)
 - .NET 10 SDK (can be installed within Visual Studio Code)
-
+- Clone repository: https://github.com/FEntwumS/FEntwumS.FSM.git
 **Steps**
 1. Install the .NET 10 SDK (search `>.net install` in VS Code's search field on top)
 2. Restart VS Code after the SDK installation
-3. Clone the repository:
-   ```sh
-   git clone https://github.com/FEntwumS/FEntwumS.FSM.git
-   ```
-4. Open the cloned folder in VS Code
-5. Run the **Build Solution** task (`Ctrl+Shift+B`)
-6. Open the **Run and Debug** panel, select **Run Plugin**, and press the play button
-7. OneWare Studio will launch with the FSM Editor extension installed
+3. Open the cloned folder in VS Code (File -> Open Folder)
+4. Run the **Build Solution** task (`Ctrl+Shift+B`)
+5. Open the **Run and Debug** panel, select **Run Plugin**, and press the play button
+6. OneWare Studio will launch with the FSM Editor extension installed
 
 > **Note:** If OneWare Studio fails to launch, check that the `program` path in `.vscode/launch.json` points to your local `OneWareStudio.exe`.
 
