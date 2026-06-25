@@ -187,6 +187,8 @@ Double-click any `.fsmxml` file in the Project Explorer to open it in the editor
 - [OneWare Studio](https://one-ware.com/docs/getting-started/setup)
 - .NET 10 SDK (can be installed within Visual Studio Code)
 - Clone repository: https://github.com/FEntwumS/FEntwumS.FSM.git
+
+  
 **Steps**
 1. Install the .NET 10 SDK (search `>.net install` in VS Code's search field on top)
 2. Restart VS Code after the SDK installation
