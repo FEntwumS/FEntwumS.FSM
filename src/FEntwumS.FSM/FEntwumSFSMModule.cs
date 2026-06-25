@@ -314,7 +314,7 @@ public class FEntwumSFSMModule : IOneWareModule
                 Icon = new IconModel { IconObservable = Observable.Return<IImage>(fsmFileIcon) },
                 IsEnabled = true,
                 Priority = 90,
-                Command = new AsyncRelayCommand(() => fsmService.OpenFromToolbarAsync())
+                Command = new AsyncRelayCommand(() => fsmService.CreateNewInFolderAsync(folder))
             };
 
             // OneWare already built the "Add" submenu before invoking registered callbacks.
