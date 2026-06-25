@@ -188,7 +188,7 @@ Double-click any `.fsmxml` file in the Project Explorer to open it in the editor
 - .NET 10 SDK (can be installed within Visual Studio Code)
 
 **Steps**
-1. Install the .NET 10 SDK (search `>.net install` in VS Code's command palette)
+1. Install the .NET 10 SDK (search `>.net install` in VS Code's search field on top)
 2. Restart VS Code after the SDK installation
 3. Clone the repository:
    ```sh
