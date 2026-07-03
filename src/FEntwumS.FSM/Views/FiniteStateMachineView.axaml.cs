@@ -212,6 +212,7 @@ public partial class FiniteStateMachineView : UserControl
     {
         if (sender is Control { DataContext: StateItemViewModel vm })
         {
+            ExitCurrentStateEditMode(except: vm);
             if (DataContext is FiniteStateMachineViewModel mainVm)
             {
                 _stateEditUndoSnapshot = mainVm.CreateUndoSnapshot();
@@ -286,6 +287,8 @@ public partial class FiniteStateMachineView : UserControl
             return;
         }
 
+        ExitCurrentStateEditMode(except: selectedState);
+
         if (mainVm.TryCompletePendingTransition(selectedState))
         {
             e.Handled = true;
@@ -334,6 +337,7 @@ public partial class FiniteStateMachineView : UserControl
 
     private void OnTransitionDoubleTapped(object? sender, TappedEventArgs e)
     {
+        ExitCurrentStateEditMode();
         if (sender is Control { DataContext: TransitionViewModel transition })
         {
             if (DataContext is FiniteStateMachineViewModel mainVm)
@@ -394,6 +398,7 @@ public partial class FiniteStateMachineView : UserControl
 
     private void OnTransitionTapped(object? sender, TappedEventArgs e)
     {
+        ExitCurrentStateEditMode();
         if (sender is Control { DataContext: TransitionViewModel transition }
             && DataContext is FiniteStateMachineViewModel mainVm)
         {
@@ -476,6 +481,7 @@ public partial class FiniteStateMachineView : UserControl
 
     private void OnTransitionPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        ExitCurrentStateEditMode();
         if (sender is not Control { DataContext: TransitionViewModel transition } control
             || DataContext is not FiniteStateMachineViewModel mainVm
             || !e.GetCurrentPoint(control).Properties.IsLeftButtonPressed)
@@ -668,17 +674,6 @@ public partial class FiniteStateMachineView : UserControl
         var lines = text.Split('\n');
         var changed = false;
 
-        for (var i = 0; i < lines.Length && i < outputSignals.Count; i++)
-        {
-            // Strip \r so we measure only actual content characters
-            var line = lines[i].TrimEnd('\r');
-            var maxLen = outputSignals[i].BitWidth;
-            if (line.Length > maxLen)
-            {
-                lines[i] = line[..maxLen] + (lines[i].EndsWith('\r') ? "\r" : string.Empty);
-                changed = true;
-            }
-        }
 
         if (!changed)
             return;
@@ -1081,6 +1076,17 @@ public partial class FiniteStateMachineView : UserControl
         {
             mainVm.DeleteVariable(variable);
         }
+    }
+
+    private void ExitCurrentStateEditMode(StateItemViewModel? except = null)
+    {
+        if (_editingState is null || ReferenceEquals(_editingState, except))
+            return;
+        if (DataContext is FiniteStateMachineViewModel mainVm)
+            mainVm.NormalizeStateOutput(_editingState);
+        var state = _editingState; // capture before CommitStateEdit nullifies _editingState
+        CommitStateEdit(state);
+        state.IsEditing = false;
     }
 
     private void CommitStateEdit(StateItemViewModel state)

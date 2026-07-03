@@ -495,6 +495,11 @@ public static class FsmXmlStateHelper
                     uiType = "BIT";
                     uiSize = string.Empty;
                 }
+                else if (string.Equals(xmlType, "unsigned", StringComparison.OrdinalIgnoreCase))
+                {
+                    uiType = "UNSIGNED";
+                    uiSize = xmlSize;
+                }
                 else
                 {
                     uiType = xmlType;
