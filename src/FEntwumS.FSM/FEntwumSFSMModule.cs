@@ -56,13 +56,13 @@ public class FEntwumSFSMModule : IOneWareModule
 		[
 			new PackageVersion()
 			{
-				Version = "1.1.4",
+				Version = "1.1.5",
 				Targets =
 				[
 					new PackageTarget()
 					{
 						Target = "all",
-						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.4/fentwums-fsm-v1.1.4.tar.gz",
+						Url = "https://github.com/FEntwumS/FEntwumS.FSMBackend/releases/download/v1.1.5/fentwums-fsm-v1.1.5.tar.gz",
 						AutoSetting = [ new PackageAutoSetting() { RelativePath = "", SettingKey = BackendPathKey } ]
 					}
 				]
