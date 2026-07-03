@@ -16,6 +16,8 @@ public interface IFiniteStateMachineService
 
     Task OpenFromToolbarAsync();
 
+    Task CreateNewInFolderAsync(IProjectFolder folder);
+
     Task<bool> EnsureBackendInstalledAsync();
 }
 
@@ -166,6 +168,63 @@ public class FiniteStateMachineService : IFiniteStateMachineService
         }
         if (projectChanged)
             await _projectExplorerService.SaveProjectAsync(project);
+
+        await ShowFiniteStateMachineByPathAsync(fullPath);
+    }
+
+    public async Task CreateNewInFolderAsync(IProjectFolder folder)
+    {
+        var dialog = new FEntwumS.FSM.Views.FsmChoiceDialog();
+        await _windowService.ShowDialogAsync(dialog, null!);
+
+        if (dialog.Result != FEntwumS.FSM.Views.FsmChoiceResult.CreateNew)
+            return;
+
+        var name = await _windowService.ShowInputAsync(
+            "New State Diagram",
+            "Enter a name for the new diagram (without extension):",
+            MessageBoxIcon.Info,
+            "NewDiagram");
+
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        name = name.Trim();
+        var fullPath = Path.Combine(folder.FullPath, $"{name}.fsmxml");
+
+        if (File.Exists(fullPath))
+        {
+            await _windowService.ShowMessageAsync("New State Diagram",
+                $"A file named '{name}.fsmxml' already exists in this folder.",
+                MessageBoxIcon.Error);
+            return;
+        }
+
+        var graphTypeName = dialog.SelectedGraphType == FsmGraphType.Mealy ? "mealy" : "moore";
+        var content =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+            $"<scxml xmlns=\"http://www.w3.org/2005/07/scxml\" version=\"1.0\" " +
+            $"profile=\"diagram\" name=\"{name}\" initial=\"\" graph_type=\"{graphTypeName}\">\n" +
+            "  <signals></signals>\n" +
+            "  <variables></variables>\n" +
+            "  <states></states>\n" +
+            "</scxml>";
+        File.WriteAllText(fullPath, content);
+
+        folder.AddFile($"{name}.fsmxml");
+
+        var root = folder.Root;
+        var rootChanged = false;
+        foreach (var (testFile, pattern) in new[] { ("test.fsmxml", "*.fsmxml"), ("test.e", "*.e"), ("test.h", "*.h"), ("test.c", "*.c") })
+        {
+            if (!root.IsPathIncluded(testFile))
+            {
+                root.IncludePath(pattern);
+                rootChanged = true;
+            }
+        }
+        if (rootChanged)
+            await _projectExplorerService.SaveProjectAsync(root);
 
         await ShowFiniteStateMachineByPathAsync(fullPath);
     }

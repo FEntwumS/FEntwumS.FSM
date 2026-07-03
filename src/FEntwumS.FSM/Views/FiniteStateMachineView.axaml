@@ -358,17 +358,6 @@
                                             <Ellipse Width="20" Height="20" Fill="#F8FAFC" Stroke="#0EA5E9"
                                                      StrokeThickness="2" IsHitTestVisible="False"/>
                                         </Border>
-                                        <!-- Bend handle -->
-                                        <Border Canvas.Left="{Binding BendHandleLeft}" Canvas.Top="{Binding BendHandleTop}"
-                                                Width="12" Height="12" Background="#01FFFFFF" CornerRadius="6"
-                                                Tag="bend"
-                                                PointerPressed="OnTransitionHandlePointerPressed"
-                                                PointerMoved="OnTransitionHandlePointerMoved"
-                                                PointerReleased="OnTransitionHandlePointerReleased"
-                                                IsVisible="{Binding IsSelected}">
-                                            <Ellipse Width="12" Height="12" Fill="#FBBF24" Stroke="#78350F"
-                                                     StrokeThickness="2" IsHitTestVisible="False"/>
-                                        </Border>
                                         <!-- Condition label (view mode) -->
                                         <Border Canvas.Left="{Binding LabelLeft}" Canvas.Top="{Binding LabelTop}"
                                                 Background="#252526" Width="{Binding LabelWidth}" Height="{Binding LabelHeight}"
@@ -392,36 +381,6 @@
                                                  IsVisible="{Binding IsEditingCondition}"
                                                  KeyDown="OnTransitionConditionKeyDown"
                                                  LostFocus="OnTransitionConditionLostFocus"/>
-                                        <!-- Output label (Mealy only) -->
-                                        <Border Canvas.Left="{Binding OutputLabelLeft}"
-                                                Canvas.Top="{Binding OutputLabelTop}"
-                                                Background="#1F2937"
-                                                Width="{Binding OutputLabelWidth}"
-                                                Height="{Binding OutputLabelHeight}"
-                                                Padding="4,2"
-                                                CornerRadius="4"
-                                                BorderBrush="#3e3e42"
-                                                BorderThickness="1"
-                                                DoubleTapped="OnTransitionOutputDoubleTapped"
-                                                IsVisible="{Binding #Root.DataContext.IsMealyGraph}">
-                                            <TextBlock Text="{Binding TruncatedOutputAssignments}"
-                                                       Foreground="#DDEBFF"
-                                                       HorizontalAlignment="Center"
-                                                       TextAlignment="Center"
-                                                       FontSize="10"
-                                                       TextWrapping="Wrap"/>
-                                        </Border>
-                                        <TextBox Canvas.Left="{Binding OutputLabelLeft}"
-                                                 Canvas.Top="{Binding OutputLabelTop}"
-                                                 Width="{Binding OutputEditorWidth}"
-                                                 Height="{Binding OutputEditorHeight}"
-                                                 Text="{Binding OutputAssignments, Mode=TwoWay}"
-                                                 AcceptsReturn="True"
-                                                 TextWrapping="Wrap"
-                                                 IsVisible="{Binding IsEditingOutputAssignments}"
-                                                 KeyDown="OnTransitionOutputKeyDown"
-                                                 LostFocus="OnTransitionOutputLostFocus"
-                                                 TextChanged="OnOutputAssignmentsTextChanged"/>
                                     </Canvas>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

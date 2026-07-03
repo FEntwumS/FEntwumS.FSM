@@ -69,7 +69,8 @@ public static class FsmXmlStateHelper
         }
 
         startNode.SetAttributeValue("target", initialStateId);
-        startNode.SetAttributeValue("condition", initialTransition?.Condition ?? startNode.Attribute("condition")?.Value ?? "1");
+        // Start node condition is always "1" — no input-dependent output at the start.
+        startNode.SetAttributeValue("condition", "1");
 
         if (initialTransition is not null)
         {
@@ -77,22 +78,11 @@ public static class FsmXmlStateHelper
             SetOrUpdatePositionElement(startNode, ns + "endPoint", initialTransition.EndPoint.X - CanvasOffset, initialTransition.EndPoint.Y - CanvasOffset);
             SetOrUpdatePositionElement(startNode, ns + "conditionPosition", initialTransition.ConditionPosition.X - CanvasOffset, initialTransition.ConditionPosition.Y - CanvasOffset);
 
-            var ctrlPointsEl = startNode.Element(ns + "ctrlPoints");
-            if (ctrlPointsEl is null)
-            {
-                ctrlPointsEl = new XElement(ns + "ctrlPoints");
-                startNode.Add(ctrlPointsEl);
-            }
-            ctrlPointsEl.RemoveAll();
-            foreach (var cp in initialTransition.ControlPoints)
-                ctrlPointsEl.Add(new XElement(ns + "ctrlPoint", new XAttribute("x", (int)(cp.X - CanvasOffset)), new XAttribute("y", (int)(cp.Y - CanvasOffset))));
+            // Never save control points for the start node — it is always a straight line.
+            startNode.Element(ns + "ctrlPoints")?.Remove();
 
+            // Never save output assignments on the start node (not valid in any graph type).
             startNode.Elements(ns + "assign").Remove();
-            if (graphType == FsmGraphType.Mealy && signals is not null)
-            {
-                foreach (var assignElement in CreateAssignElements(initialTransition.OutputAssignments, ns, signals))
-                    startNode.Add(assignElement);
-            }
         }
         else if (initialState is not null)
         {
@@ -127,7 +117,6 @@ public static class FsmXmlStateHelper
         var position = startNode.Element(ns + "position");
         var endPointEl = startNode.Element(ns + "endPoint");
         var condPosEl = startNode.Element(ns + "conditionPosition");
-        var ctrlPointsEl = startNode.Element(ns + "ctrlPoints");
 
         var startX = position is not null && double.TryParse(position.Attribute("x")?.Value, out var sx) ? sx + CanvasOffset : targetState.X - 80;
         var startY = position is not null && double.TryParse(position.Attribute("y")?.Value, out var sy) ? sy + CanvasOffset : targetState.Y + targetState.RenderHeight / 2.0;
@@ -136,30 +125,18 @@ public static class FsmXmlStateHelper
         var condX = condPosEl is not null && double.TryParse(condPosEl.Attribute("x")?.Value, out var cx) ? cx + CanvasOffset : (startX + (endX ?? startX)) / 2.0;
         var condY = condPosEl is not null && double.TryParse(condPosEl.Attribute("y")?.Value, out var cy) ? cy + CanvasOffset : startY - 16;
 
-        var condition = startNode.Attribute("condition")?.Value ?? string.Empty;
-
         var t = new TransitionViewModel
         {
             IsInitialTransition = true,
             TargetState = targetState,
-            Condition = condition,
-            OutputAssignments = graphType == FsmGraphType.Mealy && signals is not null
-                ? ReadTransitionOutputAssignments(startNode, ns, signals)
-                : string.Empty,
+            Condition = "1",
+            OutputAssignments = string.Empty,
             IsAutoRouted = false
         };
         t.StartPoint.X = startX;
         t.StartPoint.Y = startY;
 
-        if (ctrlPointsEl is not null)
-        {
-            foreach (var cp in ctrlPointsEl.Elements(ns + "ctrlPoint"))
-            {
-                var cpx = double.TryParse(cp.Attribute("x")?.Value, out var cpxv) ? cpxv : 0;
-                var cpy = double.TryParse(cp.Attribute("y")?.Value, out var cpyv) ? cpyv : 0;
-                t.ControlPoints.Add(new TransitionPointViewModel(cpx, cpy));
-            }
-        }
+        // Never load control points for the start node — it is always a straight line.
 
         t.RefreshGeometry(); // computes EndPoint based on StartPoint → TargetState
 
