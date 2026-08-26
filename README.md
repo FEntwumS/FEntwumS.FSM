@@ -147,9 +147,7 @@ The XML structure:
 1. Open **OneWare Studio**
 2. Navigate to **Extensions → Package Manager**
 3. Search for **FSM Editor** and click **Install**
-
-### Manual Installation
-Download the latest release from [GitHub Releases](https://github.com/FEntwumS/FEntwumS.FSM/releases) and install it through the OneWare package manager's manual install option.
+(While in development) add this URL as custom URL to the package manager to find the extension: https://raw.githubusercontent.com/FEntwumS/FEntwumS.FSM/refs/heads/main/oneware-extension.json)
 
 ---
 
